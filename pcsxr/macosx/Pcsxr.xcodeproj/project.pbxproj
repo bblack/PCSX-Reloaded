@@ -455,7 +455,6 @@
 		395AD6D11ECBEF5F003B4AA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3986C93F1ECD1BF60097EC16 /* Gpu.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Gpu.c; sourceTree = "<group>"; };
 		3986C9451ECD47070097EC16 /* pigl.exp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.exports; name = pigl.exp; path = ../../plugins/pigl/pigl.exp; sourceTree = "<group>"; };
-		3986C9461ECD49850097EC16 /* Gpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Gpu.h; sourceTree = "<group>"; };
 		5501288E1A1180C800468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		5501288F1A1180E500468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		550128901A11811600468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -1187,7 +1186,6 @@
 			children = (
 				3986C93F1ECD1BF60097EC16 /* Gpu.c */,
 				3986C9451ECD47070097EC16 /* pigl.exp */,
-				3986C9461ECD49850097EC16 /* Gpu.h */,
 			);
 			name = pigl;
 			path = ../plugins/pigl;

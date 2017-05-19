@@ -1,5 +1,4 @@
 #include "PSEmu Plugin Defs.h"
-#include "Gpu.h"
 // TODO: replace these quick defs for undefined shit
 #define CALLBACK
 static unsigned char * psxVub;
