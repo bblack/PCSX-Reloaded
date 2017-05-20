@@ -18,7 +18,6 @@
 		2BB3D6C305427FE200831ACB /* Plugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BBB17DA051E4D0F00B84448 /* Plugin.c */; };
 		2BB3D6C405427FE200831ACB /* PcsxrPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BA44361052DB2EA00E21DDD /* PcsxrPlugin.m */; };
 		39259C381EC7559500E23EAC /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 554FD70817C6A13E0056CF66 /* SDL2.framework */; };
-		3986C9411ECD1BF60097EC16 /* Gpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 3986C93F1ECD1BF60097EC16 /* Gpu.c */; };
 		3986C9431ECD2AB30097EC16 /* pigl.psxplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 395AD6CF1ECBEF5F003B4AA3 /* pigl.psxplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3986C9441ECD43C80097EC16 /* Gpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 3986C93F1ECD1BF60097EC16 /* Gpu.c */; };
 		550128951A11817800468D09 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 550128911A11817800468D09 /* InfoPlist.strings */; };
@@ -2360,7 +2359,6 @@
 				559366CB12B694DF004ACC1E /* ix86-64.c in Sources */,
 				559366CD12B694DF004ACC1E /* ix86_cpudetect.c in Sources */,
 				559366CE12B694DF004ACC1E /* ix86_fpu.c in Sources */,
-				3986C9411ECD1BF60097EC16 /* Gpu.c in Sources */,
 				559366CF12B694DF004ACC1E /* ix86_mmx.c in Sources */,
 				559366D012B694DF004ACC1E /* ix86_sse.c in Sources */,
 				55A90220147D7C380037E18F /* PcsxrMemCardController.m in Sources */,
@@ -3078,6 +3076,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				NEW_SETTING = "";
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = black.brian.pigl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -3106,6 +3105,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				NEW_SETTING = "";
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = black.brian.pigl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -3134,6 +3134,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				NEW_SETTING = "";
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = black.brian.pigl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
