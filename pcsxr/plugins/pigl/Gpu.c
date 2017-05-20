@@ -36,6 +36,9 @@ const  unsigned char revision = 1;
 const  unsigned char build    = 46;
 static char *libraryName      = "pi's opengl driver";
 static char *PluginAuthor     = "pi";
+#define VRAM_WIDTH 1024
+#define VRAM_HEIGHT 512
+static int VRAM_PIXEL_COUNT = VRAM_WIDTH * VRAM_HEIGHT;
 
 ////////////////////////////////////////////////////////////////////////
 // stuff to make this a true PDK module
@@ -60,9 +63,8 @@ unsigned long CALLBACK PSEgetLibVersion(void)
 // Init/shutdown, will be called just once on emu start/close
 ////////////////////////////////////////////////////////////////////////
  
-long CALLBACK GPUinit()                                // GPU INIT
-{
- return 0;
+long CALLBACK GPUinit() {
+  return 0;
 }
 
 long CALLBACK GPUshutdown()                            // GPU SHUTDOWN
@@ -82,14 +84,14 @@ void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 // Open/close will be called when a games starts/stops
 ////////////////////////////////////////////////////////////////////////
 
-long CALLBACK GPUopen(HWND hwndGPU)                    // GPU OPEN
-{
- return 0;
+long CALLBACK GPUopen(HWND hwndGPU) {
+  psxVub = calloc(VRAM_PIXEL_COUNT * 2, sizeof(unsigned char));
+  return !psxVub;
 }
 
-long CALLBACK GPUclose()                               // GPU CLOSE
-{
- return 0;
+long CALLBACK GPUclose() {
+  free(psxVub);
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////
