@@ -1,4 +1,9 @@
 #include "PSEmu Plugin Defs.h"
+#include <OpenGL/gl.h>
+#include <OpenGL/glext.h>
+#include <OpenGL/glu.h>
+#include <GLUT/glut.h>
+
 // TODO: replace these quick defs for undefined shit
 #define CALLBACK
 static unsigned char * psxVub;
@@ -39,6 +44,7 @@ static char *PluginAuthor     = "pi";
 #define VRAM_WIDTH 1024
 #define VRAM_HEIGHT 512
 static int VRAM_PIXEL_COUNT = VRAM_WIDTH * VRAM_HEIGHT;
+static bool glInitialized = FALSE;
 
 ////////////////////////////////////////////////////////////////////////
 // stuff to make this a true PDK module
@@ -84,9 +90,65 @@ void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 // Open/close will be called when a games starts/stops
 ////////////////////////////////////////////////////////////////////////
 
+
+// TODO: move it
+void display(void) {
+  glClear(GL_COLOR_BUFFER_BIT);
+  glColor3f(1.0, 0.0, 0.0);
+  glBegin(GL_POLYGON);
+  glVertex3f(0.25, 0.25, 0.0);
+  glVertex3f(0.75, 0.25, 0.0);
+  glVertex3f(0.75, 0.75, 0.0);
+  glVertex3f(0.25, 0.75, 0.0);
+  glEnd();
+  glFlush();
+}
+
+void initGLState(void) {
+  glClearColor(0.0, 0.0, 0.0, 0.0);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
+}
+
+void initGL(void) {
+  int argc = 0;
+  char ** argv;
+  
+  //glutInit(&argc, argv); // seems to already have been called by something?
+  printf("setting display mode\n");
+  glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+  
+  printf("setting window size and pos\n");
+  glutInitWindowSize(VRAM_WIDTH, VRAM_HEIGHT);
+  glutInitWindowPosition(0, 0);
+  
+  printf("size is %d, %d\n", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+  
+  printf("creating window\n");
+  glutCreateWindow("psxvram");
+  
+  printf("setting glutDisplayFunc\n");
+  glutDisplayFunc(display);
+  
+  printf("initializing GL matrix and clearcolor\n");
+  initGLState();
+  
+  printf("calling glutMainLoop");
+  glutMainLoop();
+}
+
 long CALLBACK GPUopen(HWND hwndGPU) {
+  printf("GPUopen entered\n");
   psxVub = calloc(VRAM_PIXEL_COUNT * 2, sizeof(unsigned char));
-  return !psxVub;
+  
+  if (!glInitialized) {
+    printf("initGL()...\n");
+    initGL();
+    glInitialized = TRUE;
+  }
+  
+  return 0;
 }
 
 long CALLBACK GPUclose() {
@@ -149,8 +211,9 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize)
 // core write to vram
 ////////////////////////////////////////////////////////////////////////
 
-void CALLBACK GPUwriteData(unsigned long gdata)
-{
+void CALLBACK GPUwriteData(unsigned long gdata) {
+  printf("GPUwriteData called\n");
+  
 }
 
 // new function, used by ePSXe, for example, to write a whole chunk of data
