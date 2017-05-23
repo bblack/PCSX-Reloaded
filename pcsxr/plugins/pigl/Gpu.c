@@ -4,6 +4,8 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 
+#include "window.h"
+
 // TODO: replace these quick defs for undefined shit
 #define CALLBACK
 static unsigned char * psxVub;
@@ -104,48 +106,23 @@ void display(void) {
   glFlush();
 }
 
-void initGLState(void) {
-  glClearColor(0.0, 0.0, 0.0, 0.0);
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
-}
-
-void initGL(void) {
-  int argc = 0;
-  char ** argv;
-  
-  //glutInit(&argc, argv); // seems to already have been called by something?
-  printf("setting display mode\n");
-  glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-  
-  printf("setting window size and pos\n");
-  glutInitWindowSize(VRAM_WIDTH, VRAM_HEIGHT);
-  glutInitWindowPosition(0, 0);
-  
-  printf("size is %d, %d\n", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-  
-  printf("creating window\n");
-  glutCreateWindow("psxvram");
-  
-  printf("setting glutDisplayFunc\n");
-  glutDisplayFunc(display);
-  
-  printf("initializing GL matrix and clearcolor\n");
-  initGLState();
-  
-  printf("calling glutMainLoop");
-  glutMainLoop();
-}
-
 long CALLBACK GPUopen(HWND hwndGPU) {
   printf("GPUopen entered\n");
   psxVub = calloc(VRAM_PIXEL_COUNT * 2, sizeof(unsigned char));
   
   if (!glInitialized) {
-    printf("initGL()...\n");
-    initGL();
+    printf("initGLWindow()...\n");
+    initGLWindow(VRAM_WIDTH, VRAM_HEIGHT, display);
+    printf("returned from initGLWindow()\n");
     glInitialized = TRUE;
+    makeCurrentContext();
+    //return 0;
+    printf("making GL calls now...\n");
+    glEnable(GL_DEPTH_TEST);
+    glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glFlush();
   }
   
   return 0;
