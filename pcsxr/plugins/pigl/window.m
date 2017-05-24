@@ -37,7 +37,7 @@
 // https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/ProgrammingWithObjectiveC/EncapsulatingData/EncapsulatingData.html
 // https://stackoverflow.com/a/314311/406882
 NSWindow * window; // apparently must have a strong ref,
-PiGLView * openGLView;
+NSOpenGLView * openGLView;
 
 static inline void RunOnMainThreadSync(dispatch_block_t block) {
   if ([NSThread isMainThread]) {
@@ -50,16 +50,19 @@ static inline void RunOnMainThreadSync(dispatch_block_t block) {
 void initGLWindow(int width, int height, void * display) {
   RunOnMainThreadSync(^{
     NSRect frame = NSMakeRect(0, 0, width, height);
+    NSWindowStyleMask styleMask =
+      NSWindowStyleMaskTitled |
+      NSWindowStyleMaskClosable;
     window = [NSWindow alloc];
     [window initWithContentRect:frame
-                      styleMask:NSTitledWindowMask
+                      styleMask:styleMask
                       backing:NSBackingStoreBuffered
                       defer:NO];
     
     NSRect glViewFrame = NSMakeRect(0, 0, width, height);
     NSOpenGLPixelFormatAttribute attrs[] = {};
     NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
-    openGLView = [PiGLView alloc];
+    openGLView = [NSOpenGLView alloc];
     openGLView = [openGLView initWithFrame:glViewFrame pixelFormat:pixFmt];
     //[openGLView reshape];
     // perhaps we need to subclass NSOpenGLView so we can override reshape, which is a callback,
@@ -67,7 +70,7 @@ void initGLWindow(int width, int height, void * display) {
     
     [[window contentView] addSubview:openGLView];
     
-    [window setBackgroundColor:[NSColor blueColor]];
+    //[window setBackgroundColor:[NSColor blackColor]];
     [window setTitle:@"pigl"];
     [window center];
     [window makeKeyAndOrderFront:NSApp];
