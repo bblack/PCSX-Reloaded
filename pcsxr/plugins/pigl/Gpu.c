@@ -116,13 +116,11 @@ long CALLBACK GPUopen(HWND hwndGPU) {
     printf("returned from initGLWindow()\n");
     glInitialized = TRUE;
     makeCurrentContext();
-    //return 0;
     printf("making GL calls now...\n");
-    glEnable(GL_DEPTH_TEST);
     glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
-    glClearColor(1.0, 0.0, 0.0, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glFlush();
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    display();
+    //flush();
   }
   
   return 0;
@@ -190,7 +188,8 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize)
 
 void CALLBACK GPUwriteData(unsigned long gdata) {
   printf("GPUwriteData called\n");
-  
+  makeCurrentContext();
+  display();
 }
 
 // new function, used by ePSXe, for example, to write a whole chunk of data
