@@ -96,12 +96,12 @@ void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 // TODO: move it
 void display(void) {
   glClear(GL_COLOR_BUFFER_BIT);
-  glColor3f(1.0, 0.0, 0.0);
+  glColor3f(0.0, 0.0, 1.0);
   glBegin(GL_POLYGON);
-  glVertex3f(0.25, 0.25, 0.0);
-  glVertex3f(0.75, 0.25, 0.0);
-  glVertex3f(0.75, 0.75, 0.0);
-  glVertex3f(0.25, 0.75, 0.0);
+  glVertex3f(-0.9, 0.9, 0.0);
+  glVertex3f(0.9, 0.9, 0.0);
+  glVertex3f(0.9, -0.9, 0.0);
+  glVertex3f(-0.9, -0.9, 0.0);
   glEnd();
   glFlush();
 }
@@ -190,12 +190,15 @@ void CALLBACK GPUwriteData(unsigned long gdata) {
   printf("GPUwriteData called\n");
   makeCurrentContext();
   display();
+  // TODO: call gpuwritedatamem, i guess, like xgl plugin
+  // TODO: set status reg
 }
 
 // new function, used by ePSXe, for example, to write a whole chunk of data
 
 void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize)
 {
+  printf("GPUwriteDataMem called\n");
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -64,20 +64,13 @@ void initGLWindow(int width, int height, void * display) {
     NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
     openGLView = [NSOpenGLView alloc];
     openGLView = [openGLView initWithFrame:glViewFrame pixelFormat:pixFmt];
-    //[openGLView reshape];
-    // perhaps we need to subclass NSOpenGLView so we can override reshape, which is a callback,
-    // so that it calls GL draw functions? 
     
     [[window contentView] addSubview:openGLView];
     
-    //[window setBackgroundColor:[NSColor blackColor]];
     [window setTitle:@"pigl"];
     [window center];
     [window makeKeyAndOrderFront:NSApp];
-    
   });
-  
-  // seems run must be in the above block. if run is split into a subsequent enqueued block, or they're both in such a block, the window never appears.
 }
 
 void makeCurrentContext(){
