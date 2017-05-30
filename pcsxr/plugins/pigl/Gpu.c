@@ -34,12 +34,13 @@ static int statusReg;
 #define STATUSREG statusReg
 static int dataReg;
 #define DATAREG dataReg
-static struct displayArea {
+typedef struct {
   int x;
   int y;
   int width;
   int height;
-};
+} displayArea_t;
+static displayArea_t displayArea;
 
                             
 ////////////////////////////////////////////////////////////////////////
