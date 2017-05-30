@@ -9,7 +9,6 @@
 // TODO: replace these quick defs for undefined shit
 #define CALLBACK
 static unsigned char * psxVub;
-static unsigned long GPUdataRet;
 static void * hInst;
 static long lSelectedSlot;
 static long iTransferMode;
@@ -30,8 +29,17 @@ static void DialogBox(void * a, int b, HWND c, DLGPROC d) {
 };
 static void * CfgDlgProc;
 static void * AboutDlgProc;
+// Vars below here are things I know
 static int statusReg;
 #define STATUSREG statusReg
+static int dataReg;
+#define DATAREG dataReg
+static struct displayArea {
+  int x;
+  int y;
+  int width;
+  int height;
+};
 
                             
 ////////////////////////////////////////////////////////////////////////
@@ -143,9 +151,9 @@ void CALLBACK GPUupdateLace(void)
 // process read request from GPU status register
 ////////////////////////////////////////////////////////////////////////
 
-unsigned long CALLBACK GPUreadStatus(void)             // READ STATUS
-{
- return STATUSREG;
+unsigned long CALLBACK GPUreadStatus(void) {
+  //printf("GPUreadStatus\n");
+  return STATUSREG;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -155,15 +163,45 @@ unsigned long CALLBACK GPUreadStatus(void)             // READ STATUS
 // new: for freezing stuff... memset it to 0 at GPUinit !
 unsigned long ulStatusControl[256];
 
-void CALLBACK GPUwriteStatus(unsigned long gdata)      // WRITE STATUS
-{
- unsigned long lCommand=(gdata>>24)&0xff;
+void CALLBACK GPUwriteStatus(unsigned long gdata) {
+  unsigned long lCommand = (gdata >> 24) & 0xff;
+  printf("GPUwriteStatus %08x\n", gdata);
+  ulStatusControl[lCommand] = gdata;                      // store command for freezing
 
- ulStatusControl[lCommand]=gdata;                      // store command for freezing
-
- switch(lCommand)
-  {
-   //.......
+  switch (lCommand) {
+    case 0x00: // Reset GPU
+      STATUSREG = 0x14802000; // TODO: make this less magic-numbery
+      break;
+    case 0x01: // Reset command buffer / clear fifo (TODO: do it)
+      break;
+    case 0x02: // Acknowledge GPU interrupt (IRQ1)
+      STATUSREG &= 0xfeffffff;  // "Resets the IRQ flag in GPUSTAT.24"
+      break;
+    case 0x03: // Enable/disable display (0=enable; 1=disable)
+      STATUSREG &= 0xff7fffff;
+      STATUSREG |= (gdata & 0b1) << 23;
+      break;
+    case 0x04: // Set DMA direction (0=off, 1=fifo, 2=cpu->gp0, 3=GPUREAD->CPU)
+      STATUSREG &= 0x9fffffff;
+      STATUSREG |= (gdata & 0b11) << 29;
+      break;
+    case 0x05: // Set display area location (upper-left) in vram
+      displayArea.x = gdata & 0x03ff;
+      displayArea.y = (gdata >> 10) & 0x01ff;
+      break;
+    case 0x06: // Set display x-range on screen TODO: do it
+      break;
+    case 0x07: // Set display y-range on screen TODO: do it
+      break;
+    case 0x08: // Set display mode TODO: do it
+      break;
+    case 0x10: // Get GPU Info
+      switch (gdata & 0xf) { // param
+        case 0x07: // read GPU type (usually 2) see "gpu versions"
+          DATAREG = 2;
+          break;
+      }
+      break;
   }
 }
 
@@ -171,9 +209,8 @@ void CALLBACK GPUwriteStatus(unsigned long gdata)      // WRITE STATUS
 // core read from vram
 ////////////////////////////////////////////////////////////////////////
 
-unsigned long CALLBACK GPUreadData(void)
-{
- return GPUdataRet;
+unsigned long CALLBACK GPUreadData(void) {
+  return DATAREG;
 }
 
 // new function, used by ePSXe, for example, to read a whole chunk of data
@@ -187,7 +224,7 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize)
 ////////////////////////////////////////////////////////////////////////
 
 void CALLBACK GPUwriteData(unsigned long gdata) {
-  printf("GPUwriteData called\n");
+  printf("GPUwriteData %08x\n", gdata);
   makeCurrentContext();
   display();
   // TODO: call gpuwritedatamem, i guess, like xgl plugin
