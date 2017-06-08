@@ -164,23 +164,17 @@ void display(void) {
                   GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                   GL_NEAREST);
-  unsigned short pixels[] = {
-    0b1100010000100001,
-    0b1000011000100001,
-    0b1000010000110001,
-    0b1000010000100001
-  };
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, pixels);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, VRAM_WIDTH, VRAM_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, (unsigned short *)psxVub);
   
   glBegin(GL_POLYGON);
   glTexCoord2f(0.0, 0.0);
-  glVertex3f(-0.9, 0.9, 0.0);
+  glVertex3i(-1, 1, 0);
   glTexCoord2f(1.0, 0.0);
-  glVertex3f(0.9, 0.9, 0.0);
+  glVertex3i(1, 1, 0);
   glTexCoord2f(1.0, 1.0);
-  glVertex3f(0.9, -0.9, 0.0);
+  glVertex3i(1, -1, 0);
   glTexCoord2f(0.0, 1.0);
-  glVertex3f(-0.9, -0.9, 0.0);
+  glVertex3i(-1, -1, 0);
   glEnd();
   glFlush();
 }
