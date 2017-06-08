@@ -41,8 +41,53 @@ typedef struct {
   int height;
 } displayArea_t;
 static displayArea_t displayArea;
+const static int extraWordsByCommand[] = {
+  0, 0, 0, 0, 0, 0, 0, 0, // 00
+  0, 0, 0, 0, 0, 0, 0, 0, // 08
+  0, 0, 0, 0, 0, 0, 0, 0, // 10
+  0, 0, 0, 0, 0, 0, 0, 0, // 18
+  0, 0, 0, 0, 0, 0, 0, 0, // 20
+  0, 0, 0, 0, 0, 0, 0, 0, // 28
+  0, 0, 0, 0, 0, 0, 0, 0, // 30
+  0, 0, 0, 0, 0, 0, 0, 0, // 38
+  0, 0, 0, 0, 0, 0, 0, 0, // 40
+  0, 0, 0, 0, 0, 0, 0, 0, // 48
+  0, 0, 0, 0, 0, 0, 0, 0, // 50
+  0, 0, 0, 0, 0, 0, 0, 0, // 58
+  0, 0, 0, 0, 0, 0, 0, 0, // 60
+  0, 0, 0, 0, 0, 0, 0, 0, // 68
+  0, 0, 0, 0, 0, 0, 0, 0, // 70
+  0, 0, 0, 0, 0, 0, 0, 0, // 78
+  0, 0, 0, 0, 0, 0, 0, 0, // 80
+  0, 0, 0, 0, 0, 0, 0, 0, // 88
+  0, 0, 0, 0, 0, 0, 0, 0, // 90
+  0, 0, 0, 0, 0, 0, 0, 0, // 98
+  2, 0, 0, 0, 0, 0, 0, 0, // a0
+  0, 0, 0, 0, 0, 0, 0, 0, // a8
+  0, 0, 0, 0, 0, 0, 0, 0, // b0
+  0, 0, 0, 0, 0, 0, 0, 0, // b8
+  0, 0, 0, 0, 0, 0, 0, 0, // c0
+  0, 0, 0, 0, 0, 0, 0, 0, // c8
+  0, 0, 0, 0, 0, 0, 0, 0, // d0
+  0, 0, 0, 0, 0, 0, 0, 0, // d8
+  0, 0, 0, 0, 0, 0, 0, 0, // e0
+  0, 0, 0, 0, 0, 0, 0, 0, // e8
+  0, 0, 0, 0, 0, 0, 0, 0, // f0
+  0, 0, 0, 0, 0, 0, 0, 0, // f8
+};
+static unsigned int commandWordsExpected;
+static unsigned int commandWordsReceived;
+static unsigned long commandWordsBuffer[256];
+typedef struct {
+  int x;
+  int y;
+  int width;
+  int height;
+  int currentX;
+  int currentY;
+} GPUWrite_t;
+static GPUWrite_t GPUWrite;
 
-                            
 ////////////////////////////////////////////////////////////////////////
 // PPDK developer must change libraryName field and can change revision and build
 ////////////////////////////////////////////////////////////////////////
@@ -79,7 +124,7 @@ unsigned long CALLBACK PSEgetLibVersion(void)
 ////////////////////////////////////////////////////////////////////////
 // Init/shutdown, will be called just once on emu start/close
 ////////////////////////////////////////////////////////////////////////
- 
+
 long CALLBACK GPUinit() {
   return 0;
 }
@@ -90,12 +135,12 @@ long CALLBACK GPUshutdown()                            // GPU SHUTDOWN
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Snapshot func, save some snap into 
+// Snapshot func, save some snap into
 ////////////////////////////////////////////////////////////////////////
 
 void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 {
-}        
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Open/close will be called when a games starts/stops
@@ -105,11 +150,36 @@ void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 // TODO: move it
 void display(void) {
   glClear(GL_COLOR_BUFFER_BIT);
-  glColor3f(0.0, 0.0, 1.0);
+  
+  glEnable(GL_TEXTURE_2D);
+  
+  //glColor3f(0.0, 0.0, 1.0);
+  
+  GLuint tex;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                  GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                  GL_NEAREST);
+  unsigned short pixels[] = {
+    0b1100010000100001,
+    0b1000011000100001,
+    0b1000010000110001,
+    0b1000010000100001
+  };
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, pixels);
+  
   glBegin(GL_POLYGON);
+  glTexCoord2f(0.0, 0.0);
   glVertex3f(-0.9, 0.9, 0.0);
+  glTexCoord2f(1.0, 0.0);
   glVertex3f(0.9, 0.9, 0.0);
+  glTexCoord2f(1.0, 1.0);
   glVertex3f(0.9, -0.9, 0.0);
+  glTexCoord2f(0.0, 1.0);
   glVertex3f(-0.9, -0.9, 0.0);
   glEnd();
   glFlush();
@@ -118,7 +188,7 @@ void display(void) {
 long CALLBACK GPUopen(HWND hwndGPU) {
   printf("GPUopen entered\n");
   psxVub = calloc(VRAM_PIXEL_COUNT * 2, sizeof(unsigned char));
-  
+
   if (!glInitialized) {
     printf("initGLWindow()...\n");
     initGLWindow(VRAM_WIDTH, VRAM_HEIGHT, display);
@@ -128,10 +198,11 @@ long CALLBACK GPUopen(HWND hwndGPU) {
     printf("making GL calls now...\n");
     glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
     glClearColor(0.0, 0.0, 0.0, 0.0);
+    
     display();
     //flush();
   }
-  
+
   return 0;
 }
 
@@ -216,8 +287,33 @@ unsigned long CALLBACK GPUreadData(void) {
 
 // new function, used by ePSXe, for example, to read a whole chunk of data
 
-void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize)
-{
+void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
+  for (int row=0; row<GPUWrite.height; row++) {
+    for (int col=0; col<GPUWrite.height; col++) {
+      
+    }
+  }
+}
+
+void executeWriteTextureToVram(unsigned long * buffer, unsigned int count) {
+  GPUWrite.x = GPUWrite.currentX = buffer[1] & 0xffff;
+  GPUWrite.y = GPUWrite.currentY = (buffer[1] >> 16) & 0xffff;
+  GPUWrite.width = buffer[2] & 0xffff;
+  GPUWrite.height = (buffer[2] >> 16) & 0xffff;
+}
+
+void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
+  unsigned long command = (buffer[0] >> 24) & 0xff;
+  
+  switch (command) {
+    case 0x00: // noop
+      break;
+    case 0x01: // docs unclear - clear fifo, like GP1(01h)? clear texture cache? ??
+      break;
+    case 0xa0: // write texture to vram
+      executeWriteTextureToVram(buffer, count);
+      break;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -225,18 +321,45 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize)
 ////////////////////////////////////////////////////////////////////////
 
 void CALLBACK GPUwriteData(unsigned long gdata) {
+  unsigned long command = (gdata >> 24) & 0xff;
   printf("GPUwriteData %08x\n", gdata);
   makeCurrentContext();
   display();
-  // TODO: call gpuwritedatamem, i guess, like xgl plugin
-  // TODO: set status reg
+
+  commandWordsBuffer[commandWordsReceived] = gdata;
+  if (commandWordsReceived == 0) {
+    commandWordsExpected = 1 + extraWordsByCommand[command];
+  }
+  commandWordsReceived += 1;
+  if (commandWordsReceived == commandWordsExpected) {
+    // we've collected all params for the command; let it take effect
+    executeCommandWordBuffer(commandWordsBuffer, commandWordsReceived);
+    commandWordsReceived = 0;
+    commandWordsExpected = 0;
+  }
 }
 
 // new function, used by ePSXe, for example, to write a whole chunk of data
-
-void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize)
-{
-  printf("GPUwriteDataMem called\n");
+// This represents a number (>= 1) of words written one-by-one to GPU0--
+// For example, texture data via DMA2 following GP0(A0h) 
+void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
+  unsigned short * psxVus = (unsigned short *) psxVub;
+  int wordNum = 0;
+  
+  printf("GPUwriteDataMem called; %d things (words/pixelpairs?)\n", iSize);
+  while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
+         (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
+         (wordNum < iSize)) {
+    psxVus[GPUWrite.currentY * 1024 + GPUWrite.currentX] = *(pMem + wordNum) >> 16;
+    psxVus[GPUWrite.currentY * 1024 + GPUWrite.currentX] = *(pMem + wordNum) & 0xffff;
+    ++wordNum;
+    GPUWrite.currentX = (GPUWrite.currentX + 2) % GPUWrite.width;
+    if (GPUWrite.currentX == 0) {
+      ++GPUWrite.currentY;
+    }
+  }
+  
+  
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -300,7 +423,7 @@ long CALLBACK GPUtest(void)
  return 0;
 }
 
- 
+
 ////////////////////////////////////////////////////////////////////////
 // special debug function, only available in Pete's Soft GPU
 ////////////////////////////////////////////////////////////////////////
@@ -315,7 +438,7 @@ void CALLBACK GPUdisplayText(char * pText)
 
 void CALLBACK GPUdisplayFlags(unsigned long dwFlags)
 {
- // currently supported flags: 
+ // currently supported flags:
  // bit 0 -> Analog pad mode activated
  // bit 1 -> PSX mouse mode activated
  // display this info in the gpu menu/fps display
@@ -378,5 +501,3 @@ long CALLBACK GPUfreeze(unsigned long ulGetFreezeData,GPUFreeze_t * pF)
 
  return 1;
 }
-
-
