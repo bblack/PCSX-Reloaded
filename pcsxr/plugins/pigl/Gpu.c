@@ -218,7 +218,7 @@ void CALLBACK GPUupdateLace(void)
 ////////////////////////////////////////////////////////////////////////
 
 unsigned long CALLBACK GPUreadStatus(void) {
-  //printf("GPUreadStatus\n");
+  printf("GPUreadStatus\n");
   return STATUSREG;
 }
 
@@ -231,7 +231,7 @@ unsigned long ulStatusControl[256];
 
 void CALLBACK GPUwriteStatus(unsigned long gdata) {
   unsigned long lCommand = (gdata >> 24) & 0xff;
-  //printf("GPUwriteStatus %08x\n", gdata);
+  printf("GPUwriteStatus %08x\n", gdata);
   ulStatusControl[lCommand] = gdata;                      // store command for freezing
 
   switch (lCommand) {
@@ -316,7 +316,7 @@ void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
 
 void CALLBACK GPUwriteData(unsigned long gdata) {
   unsigned long command = (gdata >> 24) & 0xff;
-  //printf("GPUwriteData %08x\n", gdata);
+  printf("GPUwriteData %08x\n", gdata);
 
   commandWordsBuffer[commandWordsReceived] = gdata;
   if (commandWordsReceived == 0) {
@@ -335,17 +335,17 @@ void CALLBACK GPUwriteData(unsigned long gdata) {
 // This represents a number (>= 1) of words written one-by-one to GPU0--
 // For example, texture data via DMA2 following GP0(A0h) 
 void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
-  unsigned short * psxVus = (unsigned short *) psxVub;
-  int wordNum = 0;
+  unsigned long * psxVul = (unsigned long *) psxVub;
+  int longNum = 0;
   
-  //printf("GPUwriteDataMem called; %d things (words/pixelpairs?)\n", iSize);
+  printf("GPUwriteDataMem called; %d things (words/pixelpairs?)\n", iSize);
   while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
          (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
-         (wordNum < iSize)) {
-    psxVus[GPUWrite.currentY * 1024 + GPUWrite.currentX] = *(pMem + wordNum) >> 16;
-    psxVus[GPUWrite.currentY * 1024 + GPUWrite.currentX] = *(pMem + wordNum) & 0xffff;
-    ++wordNum;
-    GPUWrite.currentX = (GPUWrite.currentX + 2) % GPUWrite.width;
+         (longNum < iSize)) {
+    // TODO: handle case when width not divisible by 4 pixels and might wrap mid-long
+    psxVul[(GPUWrite.currentY * 1024 + GPUWrite.currentX)/4] = *(pMem + longNum);
+    ++longNum;
+    GPUWrite.currentX = (GPUWrite.currentX + 4) % GPUWrite.width;
     if (GPUWrite.currentX == 0) {
       ++GPUWrite.currentY;
     }
