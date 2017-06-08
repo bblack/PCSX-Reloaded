@@ -47,7 +47,7 @@ static inline void RunOnMainThreadSync(dispatch_block_t block) {
   }
 }
 
-void initGLWindow(int width, int height, void * display) {
+void initGLWindow(int width, int height) {
   RunOnMainThreadSync(^{
     NSRect frame = NSMakeRect(0, 0, width, height);
     NSWindowStyleMask styleMask =

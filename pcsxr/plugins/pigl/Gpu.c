@@ -87,6 +87,7 @@ typedef struct {
   int currentY;
 } GPUWrite_t;
 static GPUWrite_t GPUWrite;
+static GLuint vramTexture;
 
 ////////////////////////////////////////////////////////////////////////
 // PPDK developer must change libraryName field and can change revision and build
@@ -146,15 +147,7 @@ void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 // Open/close will be called when a games starts/stops
 ////////////////////////////////////////////////////////////////////////
 
-
-// TODO: move it
-void display(void) {
-  glClear(GL_COLOR_BUFFER_BIT);
-  
-  glEnable(GL_TEXTURE_2D);
-  
-  //glColor3f(0.0, 0.0, 1.0);
-  
+GLuint makeVramTexture(void){
   GLuint tex;
   glGenTextures(1, &tex);
   glBindTexture(GL_TEXTURE_2D, tex);
@@ -164,7 +157,17 @@ void display(void) {
                   GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                   GL_NEAREST);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, VRAM_WIDTH, VRAM_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, (unsigned short *)psxVub);
+  return tex;
+}
+
+// TODO: move it
+void display(void) {
+  glClear(GL_COLOR_BUFFER_BIT);
+  
+  glEnable(GL_TEXTURE_2D);
+  if (!vramTexture)
+    vramTexture = makeVramTexture();
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, VRAM_WIDTH, VRAM_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, (unsigned short *)psxVub);
   
   glBegin(GL_POLYGON);
   glTexCoord2f(0.0, 0.0);
@@ -185,16 +188,13 @@ long CALLBACK GPUopen(HWND hwndGPU) {
 
   if (!glInitialized) {
     printf("initGLWindow()...\n");
-    initGLWindow(VRAM_WIDTH, VRAM_HEIGHT, display);
+    initGLWindow(VRAM_WIDTH, VRAM_HEIGHT);
     printf("returned from initGLWindow()\n");
     glInitialized = TRUE;
     makeCurrentContext();
     printf("making GL calls now...\n");
     glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
     glClearColor(0.0, 0.0, 0.0, 0.0);
-    
-    display();
-    //flush();
   }
 
   return 0;
@@ -231,7 +231,7 @@ unsigned long ulStatusControl[256];
 
 void CALLBACK GPUwriteStatus(unsigned long gdata) {
   unsigned long lCommand = (gdata >> 24) & 0xff;
-  printf("GPUwriteStatus %08x\n", gdata);
+  //printf("GPUwriteStatus %08x\n", gdata);
   ulStatusControl[lCommand] = gdata;                      // store command for freezing
 
   switch (lCommand) {
@@ -316,9 +316,7 @@ void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
 
 void CALLBACK GPUwriteData(unsigned long gdata) {
   unsigned long command = (gdata >> 24) & 0xff;
-  printf("GPUwriteData %08x\n", gdata);
-  makeCurrentContext();
-  display();
+  //printf("GPUwriteData %08x\n", gdata);
 
   commandWordsBuffer[commandWordsReceived] = gdata;
   if (commandWordsReceived == 0) {
@@ -340,7 +338,7 @@ void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
   unsigned short * psxVus = (unsigned short *) psxVub;
   int wordNum = 0;
   
-  printf("GPUwriteDataMem called; %d things (words/pixelpairs?)\n", iSize);
+  //printf("GPUwriteDataMem called; %d things (words/pixelpairs?)\n", iSize);
   while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
          (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
          (wordNum < iSize)) {
@@ -353,7 +351,8 @@ void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
     }
   }
   
-  
+  makeCurrentContext();
+  display();
 }
 
 ////////////////////////////////////////////////////////////////////////
