@@ -209,8 +209,9 @@ long CALLBACK GPUclose() {
 // UpdateLace will be called on every vsync
 ////////////////////////////////////////////////////////////////////////
 
-void CALLBACK GPUupdateLace(void)
-{
+void CALLBACK GPUupdateLace(void) {
+  makeCurrentContext();
+  display();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -268,6 +269,8 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
           break;
       }
       break;
+    default:
+      printf("Unknown GP1 cmd received: %08x\n", gdata);
   }
 }
 
@@ -299,6 +302,7 @@ void executeWriteTextureToVram(unsigned long * buffer, unsigned int count) {
 void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
   unsigned long command = (buffer[0] >> 24) & 0xff;
   
+  printf("Executing command %02x\n", command);
   switch (command) {
     case 0x00: // noop
       break;
@@ -307,6 +311,8 @@ void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
     case 0xa0: // write texture to vram
       executeWriteTextureToVram(buffer, count);
       break;
+    default:
+      printf("Command not yet implemented: %02x\n", command);
   }
 }
 
@@ -350,9 +356,6 @@ void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
       ++GPUWrite.currentY;
     }
   }
-  
-  makeCurrentContext();
-  display();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -374,8 +377,8 @@ long CALLBACK GPUgetMode(void)
 // dma chain, process gpu commands
 ////////////////////////////////////////////////////////////////////////
 
-long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr)
-{
+long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
+  printf("GPUdmaChain()\n");
  return 0;
 }
 
