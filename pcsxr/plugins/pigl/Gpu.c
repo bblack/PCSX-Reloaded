@@ -292,11 +292,13 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
   }
 }
 
-void executeWriteTextureToVram(unsigned long * buffer, unsigned int count) {
+void setupWriteTextureToVram(unsigned long * buffer, unsigned int count) {
   GPUWrite.x = GPUWrite.currentX = buffer[1] & 0xffff;
   GPUWrite.y = GPUWrite.currentY = (buffer[1] >> 16) & 0xffff;
   GPUWrite.width = buffer[2] & 0xffff;
   GPUWrite.height = (buffer[2] >> 16) & 0xffff;
+  printf("Preparing CPU->VRAM: %d * %d @ (%d, %d)\n",
+         GPUWrite.width, GPUWrite.height, GPUWrite.x, GPUWrite.y);
 }
 
 void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
@@ -309,7 +311,7 @@ void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
     case 0x01: // docs unclear - clear fifo, like GP1(01h)? clear texture cache? ??
       break;
     case 0xa0: // write texture to vram
-      executeWriteTextureToVram(buffer, count);
+      setupWriteTextureToVram(buffer, count);
       break;
     default:
       printf("Command not yet implemented: %02x\n", command);
@@ -344,17 +346,29 @@ void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
   unsigned long * psxVul = (unsigned long *) psxVub;
   int longNum = 0;
   
-  printf("GPUwriteDataMem called; %d things (words/pixelpairs?)\n", iSize);
-  while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
-         (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
-         (longNum < iSize)) {
-    // TODO: handle case when width not divisible by 4 pixels and might wrap mid-long
-    psxVul[(GPUWrite.currentY * 1024 + GPUWrite.currentX)/4] = *(pMem + longNum);
-    ++longNum;
-    GPUWrite.currentX = (GPUWrite.currentX + 4) % GPUWrite.width;
-    if (GPUWrite.currentX == 0) {
-      ++GPUWrite.currentY;
-    }
+  printf("GPUwriteDataMem called\n");
+  
+  switch ((STATUSREG >> 29) & 0b11) {
+    case 0x00: // DMA off
+      break;
+    case 0x01: // fifo
+      break;
+    case 0x02: // CPU -> GP0
+      printf("%d things (words/pixelpairs?)\n", iSize);
+      while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
+             (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
+             (longNum < iSize)) {
+        // TODO: handle case when width not divisible by 4 pixels and might wrap mid-long
+        psxVul[(GPUWrite.currentY * 1024 + GPUWrite.currentX)/4] = *(pMem + longNum);
+        ++longNum;
+        GPUWrite.currentX = (GPUWrite.currentX + 4) % GPUWrite.width;
+        if (GPUWrite.currentX == 0) {
+          ++GPUWrite.currentY;
+        }
+      }
+      break;
+    case 0x03: // GPUREAD -> CPU
+      break;
   }
 }
 
@@ -379,7 +393,21 @@ long CALLBACK GPUgetMode(void)
 
 long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
   printf("GPUdmaChain()\n");
- return 0;
+  unsigned char *psxMem = (unsigned char *)baseAddrL;
+  unsigned char *memBlock = (unsigned char *)(psxMem + addr);
+  unsigned long *memBlockWords = (unsigned int *)memBlock;
+  unsigned char memBlockWordCount;
+  unsigned int psxNextMemBlock;
+  unsigned char *nextMemBlock;
+  unsigned int nextWord;
+  
+  psxNextMemBlock = (memBlockWords[0] >> 8) & 0x00ffffff;
+  nextMemBlock = (psxNextMemBlock == 0x00ffffff) ? NULL : (psxMem + psxNextMemBlock);
+  memBlockWordCount = (memBlockWords[0] & 0xff);
+  
+  GPUwriteDataMem(memBlockWords + 1, memBlockWordCount);
+  
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////
