@@ -392,21 +392,15 @@ long CALLBACK GPUgetMode(void)
 long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
   printf("GPUdmaChain()\n");
   unsigned char *psxMem = (unsigned char *)baseAddrL;
-  unsigned char *memBlock = (unsigned char *)(psxMem + addr);
-  unsigned long *memBlockWords = (unsigned int *)memBlock;
+  unsigned int *memBlockWords;
   unsigned char memBlockWordCount;
-  unsigned int psxNextMemBlock;
-  unsigned char *nextMemBlock;
-  unsigned int nextWord;
   
-  // TODO: confirm this is right. seems endianness is an issue here
-  psxNextMemBlock = (memBlockWords[0] >> 8) & 0x00ffffff;
-  nextMemBlock = (psxNextMemBlock == 0x00ffffff) ? NULL : (psxMem + psxNextMemBlock);
-  memBlockWordCount = ((memBlockWords[0] >> 24) & 0xff);
-  
-  GPUwriteDataMem(memBlockWords + 1, memBlockWordCount);
-  
-  // TODO: do the rest of the DMA blocks;
+  do {
+    memBlockWords = (unsigned int *)(psxMem + addr);
+    memBlockWordCount = (memBlockWords[0] >> 24) & 0xff;
+    GPUwriteDataMem(memBlockWords + 1, memBlockWordCount);
+    addr = memBlockWords[0] & 0x00ffffff;
+  } while (addr != 0x00ffffff);
   
   return 0;
 }
