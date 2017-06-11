@@ -88,6 +88,7 @@ typedef struct {
 } GPUWrite_t;
 static GPUWrite_t GPUWrite;
 static GLuint vramTexture;
+static bool treatWordsAsPixelData;
 
 ////////////////////////////////////////////////////////////////////////
 // PPDK developer must change libraryName field and can change revision and build
@@ -297,7 +298,8 @@ void setupWriteTextureToVram(unsigned long * buffer, unsigned int count) {
   GPUWrite.y = GPUWrite.currentY = (buffer[1] >> 16) & 0xffff;
   GPUWrite.width = buffer[2] & 0xffff;
   GPUWrite.height = (buffer[2] >> 16) & 0xffff;
-  printf("Preparing CPU->VRAM: %d * %d @ (%d, %d)\n",
+  treatWordsAsPixelData = true;
+  printf("Prepared CPU->VRAM: %d * %d @ (%d, %d)\n",
          GPUWrite.width, GPUWrite.height, GPUWrite.x, GPUWrite.y);
 }
 
@@ -318,58 +320,54 @@ void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
   }
 }
 
-////////////////////////////////////////////////////////////////////////
-// core write to vram
-////////////////////////////////////////////////////////////////////////
-
-void CALLBACK GPUwriteData(unsigned long gdata) {
-  unsigned long command = (gdata >> 24) & 0xff;
-  printf("GPUwriteData %08x\n", gdata);
-
-  commandWordsBuffer[commandWordsReceived] = gdata;
-  if (commandWordsReceived == 0) {
-    commandWordsExpected = 1 + extraWordsByCommand[command];
-  }
-  commandWordsReceived += 1;
-  if (commandWordsReceived == commandWordsExpected) {
-    // we've collected all params for the command; let it take effect
-    executeCommandWordBuffer(commandWordsBuffer, commandWordsReceived);
-    commandWordsReceived = 0;
-    commandWordsExpected = 0;
-  }
-}
-
 // new function, used by ePSXe, for example, to write a whole chunk of data
 // This represents a number (>= 1) of words written one-by-one to GPU0--
 // For example, texture data via DMA2 following GP0(A0h) 
-void CALLBACK GPUwriteDataMem(unsigned long * pMem, int iSize) {
-  unsigned long * psxVul = (unsigned long *) psxVub;
-  int longNum = 0;
+void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
+  unsigned int * psxVuw = (unsigned int *) psxVub;
+  int wordNum = 0;
+  unsigned char command;
   
   printf("GPUwriteDataMem called\n");
   
-  switch ((STATUSREG >> 29) & 0b11) {
-    case 0x00: // DMA off
-      break;
-    case 0x01: // fifo
-      break;
-    case 0x02: // CPU -> GP0
-      printf("%d things (words/pixelpairs?)\n", iSize);
-      while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
-             (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
-             (longNum < iSize)) {
-        // TODO: handle case when width not divisible by 4 pixels and might wrap mid-long
-        psxVul[(GPUWrite.currentY * 1024 + GPUWrite.currentX)/4] = *(pMem + longNum);
-        ++longNum;
-        GPUWrite.currentX = (GPUWrite.currentX + 4) % GPUWrite.width;
-        if (GPUWrite.currentX == 0) {
-          ++GPUWrite.currentY;
-        }
+  if (treatWordsAsPixelData) {
+    printf("GPU0 receiving %d things (words/pixelpairs?) to write to VRAM\n", iSize);
+    while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
+           (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
+           (wordNum < iSize)) {
+      // TODO: handle case when width not divisible by word width and might wrap mid-word
+      psxVuw[(GPUWrite.currentY * VRAM_WIDTH + GPUWrite.currentX)/2] = *(pMem + wordNum);
+      wordNum += 1; // iSize is number of 32-bit vals; long is 2 of these
+      GPUWrite.currentX = (GPUWrite.currentX + 2) % GPUWrite.width;
+      if (GPUWrite.currentX == 0) {
+        ++GPUWrite.currentY;
       }
-      break;
-    case 0x03: // GPUREAD -> CPU
-      break;
+    }
+    if (wordNum == iSize) { // We've read as much as we expected to
+      treatWordsAsPixelData = false;
+    }
+    printf("wrote %d words to vram\n", wordNum);
+  } else {
+    for (int i = 0; i < iSize; i++) {
+      commandWordsBuffer[commandWordsReceived] = pMem[i];
+      if (commandWordsReceived == 0) {
+        command = (pMem[i] >> 24) & 0xff;
+        commandWordsExpected = 1 + extraWordsByCommand[command];
+      }
+      commandWordsReceived += 1;
+      if (commandWordsReceived == commandWordsExpected) {
+        // we've collected all params for the command; let it take effect
+        executeCommandWordBuffer(commandWordsBuffer, commandWordsReceived);
+        commandWordsReceived = 0;
+        commandWordsExpected = 0;
+      }
+    }
   }
+}
+
+void CALLBACK GPUwriteData(unsigned long gdata) {
+  printf("GPUwriteData %08x\n", gdata);
+  GPUwriteDataMem(&gdata, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -401,11 +399,14 @@ long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
   unsigned char *nextMemBlock;
   unsigned int nextWord;
   
+  // TODO: confirm this is right. seems endianness is an issue here
   psxNextMemBlock = (memBlockWords[0] >> 8) & 0x00ffffff;
   nextMemBlock = (psxNextMemBlock == 0x00ffffff) ? NULL : (psxMem + psxNextMemBlock);
-  memBlockWordCount = (memBlockWords[0] & 0xff);
+  memBlockWordCount = ((memBlockWords[0] >> 24) & 0xff);
   
   GPUwriteDataMem(memBlockWords + 1, memBlockWordCount);
+  
+  // TODO: do the rest of the DMA blocks;
   
   return 0;
 }
