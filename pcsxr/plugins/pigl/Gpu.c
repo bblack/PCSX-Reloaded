@@ -42,7 +42,7 @@ typedef struct {
 } displayArea_t;
 static displayArea_t displayArea;
 const static int extraWordsByCommand[] = {
-  0, 0, 0, 0, 0, 0, 0, 0, // 00
+  0, 0, 2, 0, 0, 0, 0, 0, // 00
   0, 0, 0, 0, 0, 0, 0, 0, // 08
   0, 0, 0, 0, 0, 0, 0, 0, // 10
   0, 0, 0, 0, 0, 0, 0, 0, // 18
