@@ -7,8 +7,6 @@
 #include "window.h"
 
 // TODO: replace these quick defs for undefined shit
-#define CALLBACK
-static unsigned char * psxVub;
 static void * hInst;
 static long lSelectedSlot;
 static long iTransferMode;
@@ -30,6 +28,8 @@ static void DialogBox(void * a, int b, HWND c, DLGPROC d) {
 static void * CfgDlgProc;
 static void * AboutDlgProc;
 // Vars below here are things I know
+#define CALLBACK
+static unsigned char * psxVub;
 static int statusReg;
 #define STATUSREG statusReg
 static int dataReg;
