@@ -636,3 +636,20 @@ long CALLBACK GPUfreeze(unsigned long ulGetFreezeData,GPUFreeze_t * pF)
 
  return 1;
 }
+
+void dumpVram(void) {
+  unsigned short * psxVuw = (unsigned short *)psxVub;
+  int w = VRAM_WIDTH;
+  int h = VRAM_HEIGHT;
+  FILE *file;
+  file = fopen("/Users/bblack/Desktop/psx.vram.ppm", "w");
+  fprintf(file, "P6\n");
+  fprintf(file, "%d %d\n", w, h);
+  fprintf(file, "255\n"); // pixel depth
+  for (int i = 0; i < w * h; i++) {
+    fputc((psxVuw[i] << 3) & 0b11111000, file); // r
+    fputc((psxVuw[i] >> 2) & 0b11111000, file); // g
+    fputc((psxVuw[i] >> 7) & 0b11111000, file); // b
+  };
+  fclose(file);
+}
