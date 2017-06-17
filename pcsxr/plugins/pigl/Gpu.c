@@ -54,7 +54,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 0, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
-  0, 0, 0, 0, 0, 0, 0, 0, // 60
+  0, 0, 2, 0, 0, 0, 0, 0, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 0, 0, 0, // 70
   0, 0, 0, 0, 0, 0, 0, 0, // 78
@@ -77,7 +77,7 @@ const static int extraWordsByCommand[] = {
 };
 static unsigned int commandWordsExpected;
 static unsigned int commandWordsReceived;
-static unsigned long commandWordsBuffer[256];
+static unsigned int commandWordsBuffer[256];
 typedef struct {
   int x;
   int y;
@@ -293,7 +293,7 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
   }
 }
 
-void setupWriteTextureToVram(unsigned long * buffer, unsigned int count) {
+void setupWriteTextureToVram(unsigned int * buffer, unsigned int count) {
   GPUWrite.x = GPUWrite.currentX = buffer[1] & 0xffff;
   GPUWrite.y = GPUWrite.currentY = (buffer[1] >> 16) & 0xffff;
   GPUWrite.width = buffer[2] & 0xffff;
@@ -303,8 +303,53 @@ void setupWriteTextureToVram(unsigned long * buffer, unsigned int count) {
          GPUWrite.width, GPUWrite.height, GPUWrite.x, GPUWrite.y);
 }
 
-void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
-  unsigned long command = (buffer[0] >> 24) & 0xff;
+unsigned short * getPixel(int x, int y) {
+  return (unsigned short *)psxVub + (y * VRAM_WIDTH + x);
+}
+
+unsigned short get15from24(unsigned int color) {
+  return ((color >> 9) & 0x7c00) |
+         ((color >> 6) & 0x03e0) |
+         ((color >> 3) & 0x001f);
+}
+
+unsigned short blend15bit(unsigned short src, unsigned short dest) {
+  // TODO: use blend func indicated by status reg bits
+  // dest - src:
+  unsigned short srcR = (src >> 10) & 0x1f;
+  unsigned short destR = (dest >> 10) & 0x1f;
+  unsigned short srcG = (src >> 5) & 0x1f;
+  unsigned short destG = (dest >> 5) & 0x1f;
+  unsigned short srcB = src & 0x1f;
+  unsigned short destB = dest & 0x1f;
+  unsigned short outR = (destR < srcR ? 0 : destR - srcR);
+  unsigned short outG = (destG < srcG ? 0 : destG - srcG);
+  unsigned short outB = (destB < srcB ? 0 : destB - srcB);
+  return ((outR << 10) & 0x7c00) |
+         ((outG << 5) & 0x03e0) |
+         (outB & 0x001f);
+}
+
+
+void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int count) {
+  int color = buffer[0] & 0xffffff; // 24-bit
+  int color15 = get15from24(color);
+  int originY = (buffer[1] >> 16) & 0xffff;
+  int originX = buffer[1] & 0xffff;
+  int height = (buffer[2] >> 16) & 0xffff;
+  int width = buffer[2] & 0xffff;
+  unsigned short * pixel;
+  
+  for (int y = originY; y < originY + height; y++) {
+    for (int x = originX; x < originX + width; x++) {
+      pixel = getPixel(x, y);
+      *pixel = blend15bit(color15, *pixel);
+    }
+  }
+}
+
+void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
+  unsigned int command = (buffer[0] >> 24) & 0xff;
   
   printf("Executing command %02x\n", command);
   switch (command) {
@@ -314,6 +359,15 @@ void executeCommandWordBuffer(unsigned long buffer[256], unsigned int count) {
       break;
     case 0xa0: // write texture to vram
       setupWriteTextureToVram(buffer, count);
+      break;
+    case 0x62: // single-color rect, var size, semi-trans
+      drawSingleColorRectVarSizeSemiTrans(buffer, count);
+    case 0xe1: // draw mode setting
+      STATUSREG &= 0xfffffc00; // copy least-sig 10 bits to status reg...
+      STATUSREG |= (buffer[0] & 0x7ff);
+      STATUSREG &= 0xffff7fff; // copy bit 11 to bit 15 of status reg...
+      STATUSREG |= ((buffer[0] & 0x800) << 4);
+      // TODO: handle bits 12, 13 (textured rectangle x, y flip)
       break;
     default:
       printf("Command not yet implemented: %02x\n", command);
@@ -327,8 +381,6 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
   unsigned int * psxVuw = (unsigned int *) psxVub;
   int wordNum = 0;
   unsigned char command;
-  
-  printf("GPUwriteDataMem called\n");
   
   if (treatWordsAsPixelData) {
     printf("GPU0 receiving %d things (words/pixelpairs?) to write to VRAM\n", iSize);
@@ -349,6 +401,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
     printf("wrote %d words to vram\n", wordNum);
   } else {
     for (int i = 0; i < iSize; i++) {
+      printf("GP0(%08xh)\n", pMem[i]);
       commandWordsBuffer[commandWordsReceived] = pMem[i];
       if (commandWordsReceived == 0) {
         command = (pMem[i] >> 24) & 0xff;
@@ -390,7 +443,7 @@ long CALLBACK GPUgetMode(void)
 ////////////////////////////////////////////////////////////////////////
 
 long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
-  printf("GPUdmaChain()\n");
+  printf(">> receiving dma chain...\n");
   unsigned char *psxMem = (unsigned char *)baseAddrL;
   unsigned int *memBlockWords;
   unsigned char memBlockWordCount;
@@ -402,6 +455,7 @@ long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
     addr = memBlockWords[0] & 0x00ffffff;
   } while (addr != 0x00ffffff);
   
+  printf("<< dma chain received\n");
   return 0;
 }
 
