@@ -59,8 +59,8 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 08
   0, 0, 0, 0, 0, 0, 0, 0, // 10
   0, 0, 0, 0, 0, 0, 0, 0, // 18
-  0, 0, 0, 0, 0, 0, 0, 0, // 20
-  0, 0, 0, 0, 0, 0, 0, 0, // 28
+  0, 0, 0, 0, 6, 6, 6, 6, // 20
+  0, 0, 0, 0, 8, 8, 8, 8, // 28
   0, 0, 0, 0, 0, 0, 0, 0, // 30
   0, 0, 0, 0, 0, 0, 0, 0, // 38
   0, 0, 0, 0, 0, 0, 0, 0, // 40
@@ -380,6 +380,22 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
   }
 }
 
+void drawTexturedTri(vec2_t v0, vec2_t v1, vec2_t v2) {
+  *(getPixel(v0.x, v0.y)) = 0xffff;
+  *(getPixel(v1.x, v1.y)) = 0xffff;
+  *(getPixel(v2.x, v2.y)) = 0xffff;
+}
+
+void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int count) {
+  vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
+  vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
+  vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
+  vec2_t v3 = {.y = (buffer[7] >> 16) & 0xffff, .x = (buffer[7] & 0xffff)};
+  
+  drawTexturedTri(v0, v1, v2);
+  drawTexturedTri(v1, v2, v3);
+}
+
 void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
   unsigned int command = (buffer[0] >> 24) & 0xff;
 
@@ -391,6 +407,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       break;
     case 0x02: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
+      break;
+    case 0x2e:
+      drawQuadTexturedSemiTransTextureBlend(buffer, count);
       break;
     case 0xa0: // write texture to vram
       setupWriteTextureToVram(buffer, count);
