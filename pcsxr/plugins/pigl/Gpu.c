@@ -380,10 +380,68 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
   }
 }
 
-void drawTexturedTri(vec2_t v0, vec2_t v1, vec2_t v2) {
-  *(getPixel(v0.x, v0.y)) = 0xffff;
-  *(getPixel(v1.x, v1.y)) = 0xffff;
-  *(getPixel(v2.x, v2.y)) = 0xffff;
+void drawTexturedTri(vec2_t verts[]) {
+//  *(getPixel(v0.x, v0.y)) = 0xffff;
+//  *(getPixel(v1.x, v1.y)) = 0xffff;
+//  *(getPixel(v2.x, v2.y)) = 0xffff;
+  
+  short vertCount = 3;
+  short yMin;
+  short yMax;
+  short vertIndexTop;
+  short vertIndexL;
+  short vertIndexR;
+  short vertIndexNextL;
+  short vertIndexNextR;
+  float xLeft;
+  float xRight;
+  short dxLeft;
+  short dxRight;
+  // find top and bottom scanlines
+  for (int i = 0; i < vertCount; i++) {
+    if ((i == 0) || (verts[i].y < yMin)) {
+      yMin = verts[i].y;
+      vertIndexTop = i;
+    }
+    if ((i == 0) || (verts[i].y > yMax)) {
+      yMax = verts[i].y;
+    }
+  }
+  // find left and right verts at top scanline (they may be the same)
+  // TODO: check, rather than assume, clockwise direction
+  vertIndexL = vertIndexTop;
+  do {
+    vertIndexR = vertIndexTop;
+    vertIndexTop = (vertIndexTop + 1) % vertCount;
+  } while (verts[vertIndexTop].y == verts[vertIndexL].y);
+  // set initial values before iteration
+  vertIndexNextL = (vertIndexL - 1 + vertCount) % vertCount;
+  vertIndexNextR = (vertIndexR + 1) % vertCount;
+  // iterate through scanlines
+  // TODO: speedup
+  // TODO: expect circular linked list to prevent all this modulo and index crap
+  for (int y = yMin; y < yMax; y++) {
+    if (verts[vertIndexNextL].y == y) {
+      vertIndexL = vertIndexNextL;
+      vertIndexNextL = (vertIndexNextL - 1 + vertCount) % vertCount;
+    }
+    if (verts[vertIndexNextR].y == y) {
+      vertIndexR = vertIndexNextR;
+      vertIndexNextR = (vertIndexNextR + 1) % vertCount;
+    }
+    xLeft = verts[vertIndexL].x + (
+      (float)(verts[vertIndexNextL].x - verts[vertIndexL].x) /
+        (verts[vertIndexNextL].y - verts[vertIndexL].y)
+    );
+    xRight = verts[vertIndexR].x + (
+      (float)(verts[vertIndexNextR].x - verts[vertIndexR].x) /
+        (verts[vertIndexNextR].y - verts[vertIndexR].y)
+    );
+    // draw scanline
+    for (int x = (short)xLeft; x < (short)xRight; x++) {
+      ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] = 0b0000001111100000;
+    }
+  }
 }
 
 void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int count) {
@@ -391,9 +449,11 @@ void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int c
   vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
   vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
   vec2_t v3 = {.y = (buffer[7] >> 16) & 0xffff, .x = (buffer[7] & 0xffff)};
+  vec2_t tri0[] = {v0, v1, v2};
+  vec2_t tri1[] = {v2, v1, v3}; // make it clockwise TODO: remove stupid hack
   
-  drawTexturedTri(v0, v1, v2);
-  drawTexturedTri(v1, v2, v3);
+  drawTexturedTri(tri0);
+  drawTexturedTri(tri1);
 }
 
 void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
