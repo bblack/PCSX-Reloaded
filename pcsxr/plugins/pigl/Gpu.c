@@ -531,9 +531,10 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
       // TODO: handle case when width not divisible by word width and might wrap mid-word
       psxVuw[(GPUWrite.currentY * VRAM_WIDTH + GPUWrite.currentX)/2] = *(pMem + wordNum);
       wordNum += 1; // iSize is number of 32-bit vals; long is 2 of these
-      GPUWrite.currentX = (GPUWrite.currentX + 2) % GPUWrite.width;
-      if (GPUWrite.currentX == 0) {
-        ++GPUWrite.currentY;
+      GPUWrite.currentX += 2;
+      if (GPUWrite.currentX >= GPUWrite.x + GPUWrite.width) {
+        GPUWrite.currentX = GPUWrite.x;
+        GPUWrite.currentY += 1;
       }
     }
     if (wordNum == iSize) { // We've read as much as we expected to
