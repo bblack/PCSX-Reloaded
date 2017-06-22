@@ -121,8 +121,7 @@ static bool glInitialized = FALSE;
 // stuff to make this a true PDK module
 ////////////////////////////////////////////////////////////////////////
 
-char * CALLBACK PSEgetLibName(void)
-{
+char * CALLBACK PSEgetLibName(void) {
  return libraryName;
 }
 
@@ -380,11 +379,33 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
   }
 }
 
-void drawTexturedTri(vec2_t verts[]) {
-//  *(getPixel(v0.x, v0.y)) = 0xffff;
-//  *(getPixel(v1.x, v1.y)) = 0xffff;
-//  *(getPixel(v2.x, v2.y)) = 0xffff;
+unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned short colorDepth, unsigned short clut) {
+  // set pixel to the halfword beginning the line
+  unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + uv.y);
+  unsigned short sample;
+  unsigned short clutX = 16 * (clut & 0x3f);
+  unsigned short clutY = (clut >> 6) & 0x1ff;
   
+  switch (colorDepth) {
+    case 0: // 4bit
+      pixel += uv.x / 4;
+      sample = (*pixel >> (4 * (uv.x % 4))) & 0xf;
+      sample = *getPixel(clutX + sample, clutY);
+      break;
+    case 1: // 8bit
+      pixel += uv.x / 2;
+      sample = (*pixel >> (8 * (uv.x % 2))) & 0xff;
+      sample = *getPixel(clutX + sample, clutY);
+      break;
+    case 2: // 16bit
+      pixel += uv.x;
+      sample = (*pixel) & 0xffff;
+      break;
+  }
+  return sample;
+}
+
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut) {
   short vertCount = 3;
   short yMin;
   short yMax;
@@ -395,8 +416,17 @@ void drawTexturedTri(vec2_t verts[]) {
   short vertIndexNextR;
   float xLeft;
   float xRight;
-  short dxLeft;
-  short dxRight;
+  float doubleTriArea = (verts[0].y - verts[2].y) * (verts[1].x - verts[2].x) +
+    (verts[1].y - verts[2].y) * (verts[2].x - verts[0].x);
+  float b[] = {0, 0, 0};
+  vec2_t uv;
+  
+  short texpageX = texpage & 0x000f; // *64
+  short texpageY = (texpage & 0x0010) >> 4; // *256
+  short texpageBlendFunc = (texpage & 0x0060) >> 5;
+  short texpageColorDepth = (texpage & 0x0180) >> 7;
+  short texpageTextureDisable = (texpage & 0x0800) >> 11;
+  
   // find top and bottom scanlines
   for (int i = 0; i < vertCount; i++) {
     if ((i == 0) || (verts[i].y < yMin)) {
@@ -439,21 +469,41 @@ void drawTexturedTri(vec2_t verts[]) {
     );
     // draw scanline
     for (int x = (short)xLeft; x < (short)xRight; x++) {
-      ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] = 0b0000001111100000;
+      b[0] = ((y - verts[2].y) * (verts[1].x - verts[2].x) +
+        (verts[1].y - verts[2].y) * (verts[2].x - x)) / doubleTriArea;
+      b[1] = ((y - verts[0].y) * (verts[2].x - verts[0].x) +
+        (verts[2].y - verts[0].y) * (verts[0].x - x)) / doubleTriArea;
+//      b[2] = (y - verts[1].y) * (verts[0].x - verts[1].x) +
+//        (verts[0].y - verts[1].y) * (verts[1].x - x);
+      b[2] = 1 - b[0] - b[1];
+      uv.x = b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x;
+      uv.y = b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y;
+      ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] =
+        sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut) & get15from24(color);
+        // 0b0100001111100000;≥
     }
   }
 }
 
 void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int count) {
+  unsigned int color = buffer[0] & 0xffffff; // TODO: reverse to get BGR. i guess this gets ANDed with texture color?
   vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
   vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
   vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
   vec2_t v3 = {.y = (buffer[7] >> 16) & 0xffff, .x = (buffer[7] & 0xffff)};
+  vec2_t uv0 = {.y = (buffer[2] >> 8) & 0xff, .x = (buffer[2] & 0xff)};
+  vec2_t uv1 = {.y = (buffer[4] >> 8) & 0xff, .x = (buffer[4] & 0xff)};
+  vec2_t uv2 = {.y = (buffer[6] >> 8) & 0xff, .x = (buffer[6] & 0xff)};
+  vec2_t uv3 = {.y = (buffer[8] >> 8) & 0xff, .x = (buffer[8] & 0xff)};
   vec2_t tri0[] = {v0, v1, v2};
   vec2_t tri1[] = {v2, v1, v3}; // make it clockwise TODO: remove stupid hack
+  vec2_t texcoords0[] = {uv0, uv1, uv2};
+  vec2_t texcoords1[] = {uv1, uv2, uv3};
+  unsigned short texpage = (buffer[4] >> 16) & 0xffff;
+  unsigned short clut = (buffer[2] >> 16) & 0xffff;
   
-  drawTexturedTri(tri0);
-  drawTexturedTri(tri1);
+  drawTexturedTri(tri0, texcoords0, color, texpage, clut);
+  drawTexturedTri(tri1, texcoords1, color, texpage, clut);
 }
 
 void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
@@ -543,7 +593,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
     // printf("wrote %d words to vram\n", wordNum);
   } else {
     for (int i = 0; i < iSize; i++) {
-      // printf("GP0(%08xh)\n", pMem[i]);
+       printf("GP0(%08xh)\n", pMem[i]);
       commandWordsBuffer[commandWordsReceived] = pMem[i];
       if (commandWordsReceived == 0) {
         command = (pMem[i] >> 24) & 0xff;
