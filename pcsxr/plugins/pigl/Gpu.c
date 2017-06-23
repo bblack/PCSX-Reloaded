@@ -569,25 +569,27 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
 // This represents a number (>= 1) of words written one-by-one to GPU0--
 // For example, texture data via DMA2 following GP0(A0h)
 void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
-  unsigned int * psxVuw = (unsigned int *) psxVub;
-  int wordNum = 0;
+  unsigned short * psxVus = (unsigned short *) psxVub;
+  unsigned short * usMem = (unsigned short *) pMem;
+  int pixelNum = 0;
   unsigned char command;
 
   if (treatWordsAsPixelData) {
     // printf("GPU0 receiving %d things (words/pixelpairs?) to write to VRAM\n", iSize);
     while ((GPUWrite.currentX < GPUWrite.x + GPUWrite.width) &&
            (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
-           (wordNum < iSize)) {
+           (pixelNum < iSize * 2)) {
       // TODO: handle case when width not divisible by word width and might wrap mid-word
-      psxVuw[(GPUWrite.currentY * VRAM_WIDTH + GPUWrite.currentX)/2] = *(pMem + wordNum);
-      wordNum += 1; // iSize is number of 32-bit vals; long is 2 of these
-      GPUWrite.currentX += 2;
+      psxVus[GPUWrite.currentY * VRAM_WIDTH + GPUWrite.currentX] =
+        usMem[pixelNum];
+      pixelNum += 1;
+      GPUWrite.currentX += 1;
       if (GPUWrite.currentX >= GPUWrite.x + GPUWrite.width) {
         GPUWrite.currentX = GPUWrite.x;
         GPUWrite.currentY += 1;
       }
     }
-    if (wordNum == iSize) { // We've read as much as we expected to
+    if (pixelNum == iSize * 2) { // We've read as much as we expected to
       treatWordsAsPixelData = false;
     }
     // printf("wrote %d words to vram\n", wordNum);
