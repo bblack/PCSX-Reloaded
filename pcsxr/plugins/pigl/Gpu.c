@@ -405,6 +405,18 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
   return sample;
 }
 
+// this is NOT semi-trans blending--this is "draw blended poly" blending
+unsigned short blend(unsigned short color, unsigned short blender) {
+  unsigned short r = (blender >> 10) & 0x1f;
+  unsigned short g = (blender >> 5) & 0x1f;
+  unsigned short b = blender & 0x1f;
+  return color & (
+    (((r ? (2 * r - 1) : 0) << 10) & 0x7c00) |
+    (((g ? (2 * g - 1) : 0) << 5 ) & 0x03e0) |
+    (((b ? (2 * b - 1) : 0) << 0 ) & 0x001f)
+  );
+}
+
 void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut) {
   short vertCount = 3;
   short yMin;
@@ -484,8 +496,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       b[2] = 1 - b[0] - b[1];
       uv.x = b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x;
       uv.y = b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y;
-      ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] =
-        sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut) & get15from24(color);
+      ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] = blend(
+        sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut),
+        get15from24(color));
     }
   }
 }
