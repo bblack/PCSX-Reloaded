@@ -451,6 +451,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   // TODO: speedup
   // TODO: expect circular linked list to prevent all this modulo and index crap
   for (int y = yMin; y < yMax; y++) {
+    if (y < 0 || y >= VRAM_HEIGHT) {
+      continue;
+    }
     if (verts[vertIndexNextL].y == y) {
       vertIndexL = vertIndexNextL;
       vertIndexNextL = (vertIndexNextL - 1 + vertCount) % vertCount;
@@ -469,6 +472,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
     );
     // draw scanline
     for (int x = (short)xLeft; x < (short)xRight; x++) {
+      if (x < 0 || x >= VRAM_WIDTH) {
+        continue;
+      }
       b[0] = ((y - verts[2].y) * (verts[1].x - verts[2].x) +
         (verts[1].y - verts[2].y) * (verts[2].x - x)) / doubleTriArea;
       b[1] = ((y - verts[0].y) * (verts[2].x - verts[0].x) +
@@ -480,7 +486,6 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       uv.y = b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y;
       ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] =
         sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut) & get15from24(color);
-        // 0b0100001111100000;≥
     }
   }
 }
@@ -589,13 +594,14 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
         GPUWrite.currentY += 1;
       }
     }
-    if (pixelNum == iSize * 2) { // We've read as much as we expected to
+    // did we just finish the final line?
+    if (GPUWrite.currentY >= GPUWrite.y + GPUWrite.height) {
       treatWordsAsPixelData = false;
     }
     // printf("wrote %d words to vram\n", wordNum);
   } else {
     for (int i = 0; i < iSize; i++) {
-       printf("GP0(%08xh)\n", pMem[i]);
+      // printf("GP0(%08xh)\n", pMem[i]);
       commandWordsBuffer[commandWordsReceived] = pMem[i];
       if (commandWordsReceived == 0) {
         command = (pMem[i] >> 24) & 0xff;
