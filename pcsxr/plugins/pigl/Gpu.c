@@ -539,14 +539,14 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x2e:
       drawQuadTexturedSemiTransTextureBlend(buffer, count);
       break;
-    case 0xa0: // write texture to vram
-      setupWriteTextureToVram(buffer, count);
-      break;
     case 0x60: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
     case 0x62: // single-color rect, var size, semi-trans
       drawSingleColorRectVarSizeSemiTrans(buffer, count);
+      break;
+    case 0xa0: // write texture to vram
+      setupWriteTextureToVram(buffer, count);
       break;
     case 0xe1: // draw mode setting
       STATUSREG &= 0xfffffc00; // copy least-sig 10 bits to status reg...
