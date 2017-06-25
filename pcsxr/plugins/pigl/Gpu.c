@@ -463,7 +463,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   // TODO: speedup
   // TODO: expect circular linked list to prevent all this modulo and index crap
   for (int y = yMin; y < yMax; y++) {
-    if (y < 0 || y >= VRAM_HEIGHT) {
+    if (y < drawingArea.y1 || y > drawingArea.y2) {
       continue;
     }
     if (verts[vertIndexNextL].y == y) {
@@ -484,7 +484,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
     );
     // draw scanline
     for (int x = (short)xLeft; x < (short)xRight; x++) {
-      if (x < 0 || x >= VRAM_WIDTH) {
+      if (x < drawingArea.x1 || x > drawingArea.x2) {
         continue;
       }
       b[0] = ((y - verts[2].y) * (verts[1].x - verts[2].x) +
