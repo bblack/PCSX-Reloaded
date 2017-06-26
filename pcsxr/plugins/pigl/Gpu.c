@@ -327,17 +327,38 @@ unsigned short get15from24(unsigned int color) {
 }
 
 unsigned short blend15bit(unsigned short src, unsigned short dest) {
-  // TODO: use blend func indicated by status reg bits
-  // dest - src:
   unsigned short srcR = (src >> 10) & 0x1f;
   unsigned short destR = (dest >> 10) & 0x1f;
   unsigned short srcG = (src >> 5) & 0x1f;
   unsigned short destG = (dest >> 5) & 0x1f;
   unsigned short srcB = src & 0x1f;
   unsigned short destB = dest & 0x1f;
-  unsigned short outR = (destR < srcR ? 0 : destR - srcR);
-  unsigned short outG = (destG < srcG ? 0 : destG - srcG);
-  unsigned short outB = (destB < srcB ? 0 : destB - srcB);
+  unsigned short outR;
+  unsigned short outG;
+  unsigned short outB;
+  unsigned char alphaMode = (statusReg >> 5) & 0x3;
+  if (src == 0) {
+    return dest;
+  }
+  if (!(src & 0x8000)) { // alpha bit = 0?
+    return src;
+  }
+  // TODO: use blend func indicated by status reg bits
+  // dest - src:
+  switch (alphaMode) {
+    case 0:
+      outR = destR / 2 + srcR / 2;
+      outG = destG / 2 + srcG / 2;
+      outB = destB / 2 + srcB / 2;
+      break;
+    case 2:
+      outR = (destR < srcR ? 0 : destR - srcR);
+      outG = (destG < srcG ? 0 : destG - srcG);
+      outB = (destB < srcB ? 0 : destB - srcB);
+      break;
+    default:
+      printf("alpha mode %d not implemented\n", alphaMode);
+  }
   return ((outR << 10) & 0x7c00) |
          ((outG << 5) & 0x03e0) |
          (outB & 0x001f);
@@ -364,7 +385,7 @@ void drawSingleColorRectVarSizeOpaque(unsigned int * buffer, unsigned int count)
 
 void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int count) {
   int color = buffer[0] & 0xffffff; // 24-bit
-  int color15 = get15from24(color);
+  int color15 = get15from24(color) | 0x8000;
   int originY = (buffer[1] >> 16) & 0xffff;
   int originX = buffer[1] & 0xffff;
   int height = (buffer[2] >> 16) & 0xffff;
@@ -406,14 +427,16 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
 }
 
 // this is NOT semi-trans blending--this is "draw blended poly" blending
-unsigned short blend(unsigned short color, unsigned short blender) {
-  unsigned short r = (blender >> 10) & 0x1f;
-  unsigned short g = (blender >> 5) & 0x1f;
-  unsigned short b = blender & 0x1f;
-  return color & (
-    (((r ? (2 * r - 1) : 0) << 10) & 0x7c00) |
-    (((g ? (2 * g - 1) : 0) << 5 ) & 0x03e0) |
-    (((b ? (2 * b - 1) : 0) << 0 ) & 0x001f)
+unsigned short blend24bit(unsigned short color, unsigned int blender) {
+  unsigned short r = ((color >> 7) & 0xf8) * ((blender >> 16) & 0xff) / 0x100 * 2;
+  unsigned short g = ((color >> 2) & 0xf8) * ((blender >> 8) & 0xff) / 0x100 * 2;
+  unsigned short b = ((color << 3) & 0xf8) * ((blender >> 0) & 0xff) / 0x100 * 2;
+  
+  return (
+    0x8000 | // alpha bit
+    ((r << 7) & 0x7c00) |
+    ((g << 2) & 0x03e0) |
+    ((b >> 3) & 0x001f)
   );
 }
 
@@ -438,6 +461,8 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   short texpageBlendFunc = (texpage & 0x0060) >> 5;
   short texpageColorDepth = (texpage & 0x0180) >> 7;
   short texpageTextureDisable = (texpage & 0x0800) >> 11;
+  unsigned short outColor;
+  unsigned short * psxVus = (unsigned short *)psxVub;
   
   // find top and bottom scanlines
   for (int i = 0; i < vertCount; i++) {
@@ -462,7 +487,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   // iterate through scanlines
   // TODO: speedup
   // TODO: expect circular linked list to prevent all this modulo and index crap
-  for (int y = yMin; y < yMax; y++) {
+  for (int y = yMin + drawingOffset.y; y < yMax + drawingOffset.y; y++) {
     if (y < drawingArea.y1 || y > drawingArea.y2) {
       continue;
     }
@@ -483,7 +508,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
         (verts[vertIndexNextR].y - verts[vertIndexR].y)
     );
     // draw scanline
-    for (int x = (short)xLeft; x < (short)xRight; x++) {
+    for (int x = (short)xLeft + drawingOffset.x; x < (short)xRight + drawingOffset.x; x++) {
       if (x < drawingArea.x1 || x > drawingArea.x2) {
         continue;
       }
@@ -496,9 +521,11 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       b[2] = 1 - b[0] - b[1];
       uv.x = b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x;
       uv.y = b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y;
-      ((unsigned short *)psxVub)[VRAM_WIDTH * y + x] = blend(
-        sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut),
-        get15from24(color));
+      
+      outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
+      outColor = blend24bit(outColor, color);
+      outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x]);
+      psxVus[VRAM_WIDTH * y + x] = outColor;
     }
   }
 }
@@ -550,7 +577,7 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       break;
     case 0xe1: // draw mode setting
       STATUSREG &= 0xfffffc00; // copy least-sig 10 bits to status reg...
-      STATUSREG |= (buffer[0] & 0x7ff);
+      STATUSREG |= (buffer[0] & 0x3ff);
       STATUSREG &= 0xffff7fff; // copy bit 11 to bit 15 of status reg...
       STATUSREG |= ((buffer[0] << 4) & 0x800);
       // TODO: handle bits 12, 13 (textured rectangle x, y flip)
