@@ -326,7 +326,7 @@ unsigned short get15from24(unsigned int color) {
          ((color >> 3) & 0x001f);
 }
 
-unsigned short blend15bit(unsigned short src, unsigned short dest) {
+unsigned short blend15bit(unsigned short src, unsigned short dest, unsigned char alphaMode) {
   unsigned short srcR = (src >> 10) & 0x1f;
   unsigned short destR = (dest >> 10) & 0x1f;
   unsigned short srcG = (src >> 5) & 0x1f;
@@ -336,7 +336,6 @@ unsigned short blend15bit(unsigned short src, unsigned short dest) {
   unsigned short outR;
   unsigned short outG;
   unsigned short outB;
-  unsigned char alphaMode = (statusReg >> 5) & 0x3;
   if (src == 0) {
     return dest;
   }
@@ -350,6 +349,14 @@ unsigned short blend15bit(unsigned short src, unsigned short dest) {
       outR = destR / 2 + srcR / 2;
       outG = destG / 2 + srcG / 2;
       outB = destB / 2 + srcB / 2;
+      break;
+    case 1:
+      outR = destR + srcR;
+      if (outR > 31) outR = 31;
+      outG = destG + srcG;
+      if (outG > 31) outG = 31;
+      outB = destB + srcB;
+      if (outB > 31) outB = 31;
       break;
     case 2:
       outR = (destR < srcR ? 0 : destR - srcR);
@@ -395,7 +402,7 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
   for (int y = originY; y < originY + height; y++) {
     for (int x = originX; x < originX + width; x++) {
       pixel = getPixel(x, y);
-      *pixel = blend15bit(color15, *pixel);
+      *pixel = blend15bit(color15, *pixel, (statusReg >> 5) & 0x3);
     }
   }
 }
@@ -458,7 +465,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   
   short texpageX = texpage & 0x000f; // *64
   short texpageY = (texpage & 0x0010) >> 4; // *256
-  short texpageBlendFunc = (texpage & 0x0060) >> 5;
+  short texpageAlphaMode = (texpage & 0x0060) >> 5;
   short texpageColorDepth = (texpage & 0x0180) >> 7;
   short texpageTextureDisable = (texpage & 0x0800) >> 11;
   unsigned short outColor;
@@ -524,7 +531,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       
       outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
       outColor = blend24bit(outColor, color);
-      outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x]);
+      outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
       psxVus[VRAM_WIDTH * y + x] = outColor;
     }
   }
@@ -605,7 +612,7 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       STATUSREG |= ((buffer[0] << 11) & 0x1800);
       break;
     default:
-      // printf("Command not yet implemented: %02x\n", command);
+      printf("Command not yet implemented: %02x\n", command);
       break;
   }
 }
@@ -641,7 +648,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
     // printf("wrote %d words to vram\n", wordNum);
   } else {
     for (int i = 0; i < iSize; i++) {
-      // printf("GP0(%08xh)\n", pMem[i]);
+      printf("GP0(%08xh)\n", pMem[i]);
       commandWordsBuffer[commandWordsReceived] = pMem[i];
       if (commandWordsReceived == 0) {
         command = (pMem[i] >> 24) & 0xff;
