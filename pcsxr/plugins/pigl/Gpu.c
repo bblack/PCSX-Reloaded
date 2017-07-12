@@ -79,7 +79,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // a8
   0, 0, 0, 0, 0, 0, 0, 0, // b0
   0, 0, 0, 0, 0, 0, 0, 0, // b8
-  0, 0, 0, 0, 0, 0, 0, 0, // c0
+  2, 0, 0, 0, 0, 0, 0, 0, // c0
   0, 0, 0, 0, 0, 0, 0, 0, // c8
   0, 0, 0, 0, 0, 0, 0, 0, // d0
   0, 0, 0, 0, 0, 0, 0, 0, // d8
@@ -100,6 +100,7 @@ typedef struct {
   int currentY;
 } GPUWrite_t;
 static GPUWrite_t GPUWrite;
+static GPUWrite_t GPURead;
 static GLuint vramTexture;
 static bool treatWordsAsPixelData;
 
@@ -288,6 +289,10 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
   }
 }
 
+unsigned short * getPixel(int x, int y) {
+  return (unsigned short *)psxVub + (y * VRAM_WIDTH + x);
+}
+
 ////////////////////////////////////////////////////////////////////////
 // core read from vram
 ////////////////////////////////////////////////////////////////////////
@@ -299,10 +304,24 @@ unsigned long CALLBACK GPUreadData(void) {
 // new function, used by ePSXe, for example, to read a whole chunk of data
 
 void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
-  for (int row=0; row<GPUWrite.height; row++) {
-    for (int col=0; col<GPUWrite.height; col++) {
-
+  // iSize is the number of WORDS (i.e. pixel PAIRS) to read
+  int pixelNum = 0;
+  unsigned short * usMem = (unsigned short *) pMem;
+  
+  while ((GPURead.currentX < GPURead.x + GPURead.width) &&
+         (GPURead.currentY < GPURead.y + GPURead.height) &&
+         (pixelNum < iSize * 2)) {
+    usMem[pixelNum] = *(getPixel(GPURead.currentX, GPURead.currentY));
+    pixelNum += 1;
+    GPURead.currentX += 1;
+    if (GPURead.currentX >= GPURead.x + GPURead.width) {
+      GPURead.currentX = GPURead.x;
+      GPURead.currentY += 1;
     }
+  }
+  // did we just finish reading the last line?
+  if (GPURead.currentY > GPURead.y + GPURead.height) {
+    statusReg &= 0xf7ffffff;
   }
 }
 
@@ -314,10 +333,6 @@ void setupWriteTextureToVram(unsigned int * buffer, unsigned int count) {
   treatWordsAsPixelData = true;
   // printf("Prepared CPU->VRAM: %d * %d @ (%d, %d)\n",
   //       GPUWrite.width, GPUWrite.height, GPUWrite.x, GPUWrite.y);
-}
-
-unsigned short * getPixel(int x, int y) {
-  return (unsigned short *)psxVub + (y * VRAM_WIDTH + x);
 }
 
 unsigned short get15from24(unsigned int color) {
@@ -558,6 +573,18 @@ void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int c
   drawTexturedTri(tri1, texcoords1, color, texpage, clut);
 }
 
+void setupReadFromVram(unsigned int * buffer, unsigned int count) {
+  unsigned short x = buffer[1] & 0xffff;
+  unsigned short y = (buffer[1] >> 16) & 0xffff;
+  unsigned short width = buffer[2] & 0xffff;
+  unsigned short height = (buffer[2] >> 16) & 0xffff;
+  GPURead.currentX = GPURead.x = x;
+  GPURead.currentY = GPURead.y = y;
+  GPURead.width = width;
+  GPURead.height = height;
+  statusReg |= 0x08000000;
+}
+
 void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
   unsigned int command = (buffer[0] >> 24) & 0xff;
 
@@ -581,6 +608,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       break;
     case 0xa0: // write texture to vram
       setupWriteTextureToVram(buffer, count);
+      break;
+    case 0xc0:
+      setupReadFromVram(buffer, count);
       break;
     case 0xe1: // draw mode setting
       STATUSREG &= 0xfffffc00; // copy least-sig 10 bits to status reg...
