@@ -67,7 +67,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 0, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
-  0, 0, 2, 0, 0, 0, 0, 0, // 60
+  0, 0, 2, 0, 0, 2, 0, 0, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 0, 0, 0, // 70
   0, 0, 0, 0, 0, 0, 0, 0, // 78
@@ -462,7 +462,7 @@ unsigned short blend24bit(unsigned short color, unsigned int blender) {
   );
 }
 
-void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut) {
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut, bool semiTrans) {
   short vertCount = 3;
   short yMin;
   short yMax;
@@ -546,14 +546,45 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       
       outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
       outColor = blend24bit(outColor, color);
-      outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
+      if (semiTrans) {
+        outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
+      }
       psxVus[VRAM_WIDTH * y + x] = outColor;
     }
   }
 }
 
-void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int count) {
-  unsigned int color = buffer[0] & 0xffffff; // TODO: reverse to get BGR. i guess this gets ANDed with texture color?
+void drawRect(unsigned int * buffer, unsigned int count) {
+  unsigned short y = (buffer[1] >> 16) & 0xffff;
+  unsigned short x = buffer[1] & 0xffff;
+  unsigned short clut = (buffer[2] >> 16) & 0xffff;
+  unsigned short v = (buffer[2] >> 8) & 0xff;
+  unsigned short u = buffer[2] & 0xff;
+  unsigned short height = (buffer[3] >> 16) & 0xffff;
+  unsigned short width = buffer[3] & 0xffff;
+  vec2_t v0 = {.y = y, .x = x};
+  vec2_t v1 = {.y = y, .x = x + width};
+  vec2_t v2 = {.y = y + height, .x = x + width};
+  vec2_t v3 = {.y = y + height, .x = x};
+  vec2_t uv0 = {.y = v, .x = u};
+  vec2_t uv1 = {.y = v, .x = u + width};
+  vec2_t uv2 = {.y = v + height, .x = u + width};
+  vec2_t uv3 = {.y = v + height, .x = u};
+  vec2_t tri0[] = {v0, v1, v2};
+  vec2_t tri1[] = {v1, v2, v3};
+  vec2_t texcoords0[] = {uv0, uv1, uv2};
+  vec2_t texcoords1[] = {uv1, uv2, uv3};
+  bool semiTrans = false;
+  unsigned int color = 0;
+  unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
+  
+  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans);
+  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans);
+}
+
+void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
+  unsigned int color = buffer[0] & 0x00ffffff; // TODO: reverse to get BGR. i guess this gets ANDed with texture color?
+  bool semiTrans = ((buffer[0] & 0x06000000) == 0x06000000);
   vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
   vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
   vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
@@ -569,8 +600,8 @@ void drawQuadTexturedSemiTransTextureBlend(unsigned int * buffer, unsigned int c
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   
-  drawTexturedTri(tri0, texcoords0, color, texpage, clut);
-  drawTexturedTri(tri1, texcoords1, color, texpage, clut);
+  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans);
+  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans);
 }
 
 void setupReadFromVram(unsigned int * buffer, unsigned int count) {
@@ -597,14 +628,17 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x02: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
+    case 0x2c:
     case 0x2e:
-      drawQuadTexturedSemiTransTextureBlend(buffer, count);
+      drawQuadTexturedTextureBlend(buffer, count);
       break;
     case 0x60: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
     case 0x62: // single-color rect, var size, semi-trans
       drawSingleColorRectVarSizeSemiTrans(buffer, count);
+      break;
+    case 0x65:
       break;
     case 0xa0: // write texture to vram
       setupWriteTextureToVram(buffer, count);
