@@ -67,7 +67,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 0, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
-  0, 0, 2, 0, 0, 2, 0, 0, // 60
+  2, 0, 2, 0, 0, 3, 0, 3, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 0, 0, 0, // 70
   0, 0, 0, 0, 0, 0, 0, 0, // 78
@@ -398,7 +398,13 @@ void drawSingleColorRectVarSizeOpaque(unsigned int * buffer, unsigned int count)
   unsigned short * pixel;
 
   for (int y = originY; y < originY + height; y++) {
+    if (y < drawingArea.y1 || y > drawingArea.y2) {
+      continue;
+    }
     for (int x = originX; x < originX + width; x++) {
+      if (x < drawingArea.x1 || x > drawingArea.x2) {
+        continue;
+      }
       pixel = getPixel(x, y);
       *pixel = color15;
     }
@@ -554,7 +560,8 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   }
 }
 
-void drawRect(unsigned int * buffer, unsigned int count) {
+void drawTexturedRect(unsigned int * buffer, unsigned int count) {
+  bool semiTrans = (buffer[0] >> 25) & 0x1;
   unsigned short y = (buffer[1] >> 16) & 0xffff;
   unsigned short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
@@ -574,7 +581,6 @@ void drawRect(unsigned int * buffer, unsigned int count) {
   vec2_t tri1[] = {v1, v2, v3};
   vec2_t texcoords0[] = {uv0, uv1, uv2};
   vec2_t texcoords1[] = {uv1, uv2, uv3};
-  bool semiTrans = false;
   unsigned int color = 0;
   unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
   
@@ -639,6 +645,8 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       drawSingleColorRectVarSizeSemiTrans(buffer, count);
       break;
     case 0x65:
+    case 0x67:
+      drawTexturedRect(buffer, count);
       break;
     case 0xa0: // write texture to vram
       setupWriteTextureToVram(buffer, count);
