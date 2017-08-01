@@ -557,7 +557,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       if (semiTrans) {
         outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
       }
-      psxVus[VRAM_WIDTH * y + x] = outColor;
+      if (outColor != 0x0000) { // remember, "full-black" is actually "full transparent"
+        psxVus[VRAM_WIDTH * y + x] = outColor;
+      }
     }
   }
 }
