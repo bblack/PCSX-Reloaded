@@ -468,7 +468,7 @@ unsigned short blend24bit(unsigned short color, unsigned int blender) {
   );
 }
 
-void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut, bool semiTrans) {
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut, bool semiTrans, bool shade) {
   short vertCount = 3;
   short yMin;
   short yMax;
@@ -551,7 +551,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       uv.y = b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y;
       
       outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
-      outColor = blend24bit(outColor, color);
+      if (shade) {
+        outColor = blend24bit(outColor, color);
+      }
       if (semiTrans) {
         outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
       }
@@ -562,6 +564,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
 
 void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   bool semiTrans = (buffer[0] >> 25) & 0x1;
+  bool shade = ((buffer[0] >> 26) & 0x1) && !((buffer[0] >> 24) & 0x1);
   unsigned short y = (buffer[1] >> 16) & 0xffff;
   unsigned short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
@@ -584,13 +587,14 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   unsigned int color = 0;
   unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
   
-  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans);
-  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans);
+  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans, shade);
+  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans, shade);
 }
 
 void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int color = buffer[0] & 0x00ffffff; // TODO: reverse to get BGR. i guess this gets ANDed with texture color?
   bool semiTrans = ((buffer[0] & 0x06000000) == 0x06000000);
+  bool shade = true;
   vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
   vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
   vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
@@ -606,8 +610,8 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   
-  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans);
-  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans);
+  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans, shade);
+  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans, shade);
 }
 
 void setupReadFromVram(unsigned int * buffer, unsigned int count) {
