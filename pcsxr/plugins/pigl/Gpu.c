@@ -547,8 +547,8 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
 //      b[2] = (y - verts[1].y) * (verts[0].x - verts[1].x) +
 //        (verts[0].y - verts[1].y) * (verts[1].x - x);
       b[2] = 1 - b[0] - b[1];
-      uv.x = b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x;
-      uv.y = b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y;
+      uv.x = round(b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x);
+      uv.y = round(b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y);
       
       outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
       if (shade) {
