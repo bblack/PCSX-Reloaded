@@ -472,7 +472,6 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   short vertCount = 3;
   short yMin;
   short yMax;
-  short vertIndexTop;
   short vertIndexL;
   short vertIndexR;
   short vertIndexNextL;
@@ -492,31 +491,28 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
   unsigned short outColor;
   unsigned short * psxVus = (unsigned short *)psxVub;
   
-  // find top and bottom scanlines
+  // find top and bottom scanlines (yMin, yMax)
+  // set left and right verts to leftmost and rightmost of top scanline (may be same)
   for (int i = 0; i < vertCount; i++) {
     if ((i == 0) || (verts[i].y < yMin)) {
       yMin = verts[i].y;
-      vertIndexTop = i;
+      vertIndexL = i;
+      vertIndexR = i;
+    } else if (verts[i].y == yMin) {
+      vertIndexR = i;
     }
     if ((i == 0) || (verts[i].y > yMax)) {
       yMax = verts[i].y;
     }
   }
-  // find left and right verts at top scanline (they may be the same)
-  // TODO: check, rather than assume, clockwise direction
-  vertIndexL = vertIndexTop;
-  do {
-    vertIndexR = vertIndexTop;
-    vertIndexTop = (vertIndexTop + 1) % vertCount;
-  } while (verts[vertIndexTop].y == verts[vertIndexL].y);
   // set initial values before iteration
   vertIndexNextL = (vertIndexL - 1 + vertCount) % vertCount;
   vertIndexNextR = (vertIndexR + 1) % vertCount;
   // iterate through scanlines
   // TODO: speedup
   // TODO: expect circular linked list to prevent all this modulo and index crap
-  for (int y = yMin + drawingOffset.y; y < yMax + drawingOffset.y; y++) {
-    if (y < drawingArea.y1 || y > drawingArea.y2) {
+  for (int y = yMin; y < yMax; y++) {
+    if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2) {
       continue;
     }
     if (verts[vertIndexNextL].y == y) {
@@ -527,17 +523,20 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
       vertIndexR = vertIndexNextR;
       vertIndexNextR = (vertIndexNextR + 1) % vertCount;
     }
+    // ((y - y0)/(y1 - y0))(x1 - x0) + x0
     xLeft = verts[vertIndexL].x + (
-      (float)(verts[vertIndexNextL].x - verts[vertIndexL].x) /
-        (verts[vertIndexNextL].y - verts[vertIndexL].y)
+      (float)(y - verts[vertIndexL].y) /
+        (verts[vertIndexNextL].y - verts[vertIndexL].y) *
+        (verts[vertIndexNextL].x - verts[vertIndexL].x)
     );
     xRight = verts[vertIndexR].x + (
-      (float)(verts[vertIndexNextR].x - verts[vertIndexR].x) /
-        (verts[vertIndexNextR].y - verts[vertIndexR].y)
+      (float)(y - verts[vertIndexR].y) /
+        (verts[vertIndexNextR].y - verts[vertIndexR].y) *
+        (verts[vertIndexNextR].x - verts[vertIndexR].x)
     );
     // draw scanline
-    for (int x = (short)xLeft + drawingOffset.x; x < (short)xRight + drawingOffset.x; x++) {
-      if (x < drawingArea.x1 || x > drawingArea.x2) {
+    for (int x = (short)xLeft; x < (short)xRight; x++) {
+      if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2) {
         continue;
       }
       b[0] = ((y - verts[2].y) * (verts[1].x - verts[2].x) +
@@ -558,7 +557,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
         outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
       }
       if (outColor != 0x0000) { // remember, "full-black" is actually "full transparent"
-        psxVus[VRAM_WIDTH * y + x] = outColor;
+        psxVus[VRAM_WIDTH * (y + drawingOffset.y) + (x + drawingOffset.x)] = outColor;
       }
     }
   }
@@ -608,7 +607,7 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   vec2_t tri0[] = {v0, v1, v2};
   vec2_t tri1[] = {v2, v1, v3}; // make it clockwise TODO: remove stupid hack
   vec2_t texcoords0[] = {uv0, uv1, uv2};
-  vec2_t texcoords1[] = {uv1, uv2, uv3};
+  vec2_t texcoords1[] = {uv2, uv1, uv3};
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   
