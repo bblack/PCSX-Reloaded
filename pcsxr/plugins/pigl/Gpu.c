@@ -582,9 +582,9 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   vec2_t uv2 = {.y = v + height, .x = u + width};
   vec2_t uv3 = {.y = v + height, .x = u};
   vec2_t tri0[] = {v0, v1, v2};
-  vec2_t tri1[] = {v1, v2, v3};
+  vec2_t tri1[] = {v2, v3, v0};
   vec2_t texcoords0[] = {uv0, uv1, uv2};
-  vec2_t texcoords1[] = {uv1, uv2, uv3};
+  vec2_t texcoords1[] = {uv2, uv3, uv0};
   unsigned int color = 0;
   unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
   
