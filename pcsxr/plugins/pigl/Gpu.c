@@ -61,8 +61,8 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 18
   0, 0, 0, 0, 6, 6, 6, 6, // 20
   0, 0, 0, 0, 8, 8, 8, 8, // 28
-  0, 0, 0, 0, 0, 0, 0, 0, // 30
-  0, 0, 0, 0, 0, 0, 0, 0, // 38
+  5, 0, 0, 0, 0, 0, 0, 0, // 30
+  7, 0, 0, 0, 0, 0, 0, 0, // 38
   0, 0, 0, 0, 0, 0, 0, 0, // 40
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 0, 0, 0, 0, 0, // 50
@@ -71,7 +71,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 0, 0, 0, // 70
   0, 0, 0, 0, 0, 0, 0, 0, // 78
-  0, 0, 0, 0, 0, 0, 0, 0, // 80
+  3, 0, 0, 0, 0, 0, 0, 0, // 80
   0, 0, 0, 0, 0, 0, 0, 0, // 88
   0, 0, 0, 0, 0, 0, 0, 0, // 90
   0, 0, 0, 0, 0, 0, 0, 0, // 98
@@ -325,6 +325,20 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
   }
 }
 
+void copyVramToVram(unsigned int * buffer) {
+  vec2_t fromLoc = {.x = buffer[1] & 0xffff, .y = (buffer[1] >> 32) & 0xffff};
+  vec2_t toLoc = {.x = buffer[2] & 0xffff, .y = (buffer[2] >> 32) & 0xffff};
+  vec2_t size = {.x = buffer[3] & 0xffff, .y = (buffer[3] >> 32) & 0xffff};
+  unsigned short *psxVus = (unsigned short *)psxVub;
+  for (int i = 0; i < size.y; i++) {
+    memcpy(
+      psxVus + (VRAM_WIDTH * toLoc.y + toLoc.x),
+      psxVus + (VRAM_WIDTH * fromLoc.y + fromLoc.x),
+      2 * size.x
+    );
+  }
+}
+
 void setupWriteTextureToVram(unsigned int * buffer, unsigned int count) {
   GPUWrite.x = GPUWrite.currentX = buffer[1] & 0xffff;
   GPUWrite.y = GPUWrite.currentY = (buffer[1] >> 16) & 0xffff;
@@ -468,7 +482,7 @@ unsigned short blend24bit(unsigned short color, unsigned int blender) {
   );
 }
 
-void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, unsigned short texpage, unsigned short clut, bool semiTrans, bool shade) {
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned int color, unsigned short texpage, unsigned short clut, bool semiTrans, bool blend) {
   short vertCount = 3;
   short yMin;
   short yMax;
@@ -546,11 +560,26 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
 //      b[2] = (y - verts[1].y) * (verts[0].x - verts[1].x) +
 //        (verts[0].y - verts[1].y) * (verts[1].x - x);
       b[2] = 1 - b[0] - b[1];
-      uv.x = round(b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x);
-      uv.y = round(b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y);
-      
-      outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
-      if (shade) {
+      if (texcoords) {
+        uv.x = round(b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x);
+        uv.y = round(b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y);
+        outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
+      } else {
+        outColor = (((int)(
+          ((colors[0] >> 16) & 0xff) * b[0] +
+          ((colors[1] >> 16) & 0xff) * b[1] +
+          ((colors[2] >> 16) & 0xff) * b[2]
+        ) << 16) | 0x00ff0000) & (((int)(
+          ((colors[0] >> 8) & 0xff) * b[0] +
+          ((colors[1] >> 8) & 0xff) * b[1] +
+          ((colors[2] >> 8) & 0xff) * b[2]
+        ) << 8) | 0x0000ff00) & ((int)(
+          (colors[0] & 0xff) * b[0] +
+          (colors[1] & 0xff) * b[1] +
+          (colors[2] & 0xff) * b[2]
+        ) | 0x000000ff);
+      }
+      if (blend) {
         outColor = blend24bit(outColor, color);
       }
       if (semiTrans) {
@@ -565,7 +594,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int color, uns
 
 void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   bool semiTrans = (buffer[0] >> 25) & 0x1;
-  bool shade = ((buffer[0] >> 26) & 0x1) && !((buffer[0] >> 24) & 0x1);
+  bool blend = ((buffer[0] >> 26) & 0x1) && !((buffer[0] >> 24) & 0x1);
   unsigned short y = (buffer[1] >> 16) & 0xffff;
   unsigned short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
@@ -588,14 +617,14 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   unsigned int color = 0;
   unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
   
-  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans, shade);
-  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans, shade);
+  drawTexturedTri(tri0, texcoords0, NULL, color, texpage, clut, semiTrans, blend);
+  drawTexturedTri(tri1, texcoords1, NULL, color, texpage, clut, semiTrans, blend);
 }
 
 void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int color = buffer[0] & 0x00ffffff; // TODO: reverse to get BGR. i guess this gets ANDed with texture color?
-  bool semiTrans = ((buffer[0] & 0x06000000) == 0x06000000);
-  bool shade = true;
+  bool semiTrans = (buffer[0] & 0x02000000) == 0x02000000;
+  bool blend =     (buffer[0] & 0x05000000) == 0x04000000;
   vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
   vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
   vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
@@ -611,8 +640,37 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   
-  drawTexturedTri(tri0, texcoords0, color, texpage, clut, semiTrans, shade);
-  drawTexturedTri(tri1, texcoords1, color, texpage, clut, semiTrans, shade);
+  drawTexturedTri(tri0, texcoords0, NULL, color, texpage, clut, semiTrans, blend);
+  drawTexturedTri(tri1, texcoords1, NULL, color, texpage, clut, semiTrans, blend);
+}
+
+void drawTriShaded(unsigned int * buffer, unsigned int count) {
+  vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
+  vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
+  vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
+  unsigned int c0 = buffer[0] & 0x00ffffff;
+  unsigned int c1 = buffer[2] & 0x00ffffff;
+  unsigned int c2 = buffer[4] & 0x00ffffff;
+  vec2_t tri[] = {v0, v1, v2};
+  unsigned int colors[] = {c0, c1, c2};
+  drawTexturedTri(tri, NULL, colors, NULL, NULL, NULL, false, false);
+}
+
+void drawQuadShaded(unsigned int * buffer, unsigned int count) {
+  vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
+  vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
+  vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
+  vec2_t v3 = {.y = (buffer[7] >> 16) & 0xffff, .x = (buffer[7] & 0xffff)};
+  unsigned int c0 = buffer[0] & 0x00ffffff;
+  unsigned int c1 = buffer[2] & 0x00ffffff;
+  unsigned int c2 = buffer[4] & 0x00ffffff;
+  unsigned int c3 = buffer[6] & 0x00ffffff;
+  vec2_t tri0[] = {v0, v1, v2};
+  vec2_t tri1[] = {v2, v1, v0};
+  unsigned int colors0[] = {c0, c1, c2};
+  unsigned int colors1[] = {c2, c1, c0};
+  drawTexturedTri(tri0, NULL, colors0, NULL, NULL, NULL, false, false);
+  drawTexturedTri(tri1, NULL, colors1, NULL, NULL, NULL, false, false);
 }
 
 void setupReadFromVram(unsigned int * buffer, unsigned int count) {
@@ -643,6 +701,12 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x2e:
       drawQuadTexturedTextureBlend(buffer, count);
       break;
+    case 0x30: // shaded tri, opaque
+      drawTriShaded(buffer, count);
+      break;
+    case 0x38: // shaded quad, opaque
+      drawQuadShaded(buffer, count);
+      break;
     case 0x60: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
@@ -652,6 +716,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x65:
     case 0x67:
       drawTexturedRect(buffer, count);
+      break;
+    case 0x80:
+      copyVramToVram(buffer);
       break;
     case 0xa0: // write texture to vram
       setupWriteTextureToVram(buffer, count);
