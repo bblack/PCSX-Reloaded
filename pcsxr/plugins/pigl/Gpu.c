@@ -482,7 +482,7 @@ unsigned short blend24bit(unsigned short color, unsigned int blender) {
   );
 }
 
-void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned int color, unsigned short texpage, unsigned short clut, bool semiTrans, bool blend) {
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned short texpage, unsigned short clut, bool semiTrans) {
   short vertCount = 3;
   short yMin;
   short yMax;
@@ -502,6 +502,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
   short texpageAlphaMode = (texpage & 0x0060) >> 5;
   short texpageColorDepth = (texpage & 0x0180) >> 7;
   short texpageTextureDisable = (texpage & 0x0800) >> 11;
+  unsigned int blendColor;
   unsigned short outColor;
   unsigned short * psxVus = (unsigned short *)psxVub;
   
@@ -565,22 +566,26 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
         uv.y = round(b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y);
         outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
       } else {
-        outColor = (((int)(
-          ((colors[0] >> 16) & 0xff) * b[0] +
-          ((colors[1] >> 16) & 0xff) * b[1] +
-          ((colors[2] >> 16) & 0xff) * b[2]
-        ) << 16) | 0x00ff0000) & (((int)(
-          ((colors[0] >> 8) & 0xff) * b[0] +
-          ((colors[1] >> 8) & 0xff) * b[1] +
-          ((colors[2] >> 8) & 0xff) * b[2]
-        ) << 8) | 0x0000ff00) & ((int)(
-          (colors[0] & 0xff) * b[0] +
-          (colors[1] & 0xff) * b[1] +
-          (colors[2] & 0xff) * b[2]
-        ) | 0x000000ff);
+        outColor = 0x7fff;
       }
-      if (blend) {
-        outColor = blend24bit(outColor, color);
+      if (colors) {
+        blendColor =
+          ((unsigned int)(
+            ((colors[0] >> 16) & 0xff) * b[0] +
+            ((colors[1] >> 16) & 0xff) * b[1] +
+            ((colors[2] >> 16) & 0xff) * b[2]
+          ) << 16) & 0x00ff0000 |
+          ((unsigned int)(
+            ((colors[0] >> 8) & 0xff) * b[0] +
+            ((colors[1] >> 8) & 0xff) * b[1] +
+            ((colors[2] >> 8) & 0xff) * b[2]
+          ) << 8) & 0x0000ff00 |
+          ((unsigned int)(
+            (colors[0] & 0xff) * b[0] +
+            (colors[1] & 0xff) * b[1] +
+            (colors[2] & 0xff) * b[2]
+          ) & 0x000000ff);
+        outColor = blend24bit(outColor, blendColor);
       }
       if (semiTrans) {
         outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
@@ -614,11 +619,10 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   vec2_t tri1[] = {v2, v3, v0};
   vec2_t texcoords0[] = {uv0, uv1, uv2};
   vec2_t texcoords1[] = {uv2, uv3, uv0};
-  unsigned int color = 0;
   unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
   
-  drawTexturedTri(tri0, texcoords0, NULL, color, texpage, clut, semiTrans, blend);
-  drawTexturedTri(tri1, texcoords1, NULL, color, texpage, clut, semiTrans, blend);
+  drawTexturedTri(tri0, texcoords0, NULL, texpage, clut, semiTrans);
+  drawTexturedTri(tri1, texcoords1, NULL, texpage, clut, semiTrans);
 }
 
 void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
@@ -637,11 +641,12 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   vec2_t tri1[] = {v2, v1, v3}; // make it clockwise TODO: remove stupid hack
   vec2_t texcoords0[] = {uv0, uv1, uv2};
   vec2_t texcoords1[] = {uv2, uv1, uv3};
+  unsigned int colors[] = {color, color, color};
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   
-  drawTexturedTri(tri0, texcoords0, NULL, color, texpage, clut, semiTrans, blend);
-  drawTexturedTri(tri1, texcoords1, NULL, color, texpage, clut, semiTrans, blend);
+  drawTexturedTri(tri0, texcoords0, colors, texpage, clut, semiTrans);
+  drawTexturedTri(tri1, texcoords1, colors, texpage, clut, semiTrans);
 }
 
 void drawTriShaded(unsigned int * buffer, unsigned int count) {
@@ -653,7 +658,7 @@ void drawTriShaded(unsigned int * buffer, unsigned int count) {
   unsigned int c2 = buffer[4] & 0x00ffffff;
   vec2_t tri[] = {v0, v1, v2};
   unsigned int colors[] = {c0, c1, c2};
-  drawTexturedTri(tri, NULL, colors, NULL, NULL, NULL, false, false);
+  drawTexturedTri(tri, NULL, colors, NULL, NULL, false);
 }
 
 void drawQuadShaded(unsigned int * buffer, unsigned int count) {
@@ -669,8 +674,8 @@ void drawQuadShaded(unsigned int * buffer, unsigned int count) {
   vec2_t tri1[] = {v2, v1, v0};
   unsigned int colors0[] = {c0, c1, c2};
   unsigned int colors1[] = {c2, c1, c0};
-  drawTexturedTri(tri0, NULL, colors0, NULL, NULL, NULL, false, false);
-  drawTexturedTri(tri1, NULL, colors1, NULL, NULL, NULL, false, false);
+  drawTexturedTri(tri0, NULL, colors0, NULL, NULL, false);
+  drawTexturedTri(tri1, NULL, colors1, NULL, NULL, false);
 }
 
 void setupReadFromVram(unsigned int * buffer, unsigned int count) {
