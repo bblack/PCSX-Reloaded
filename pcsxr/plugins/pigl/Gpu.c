@@ -61,7 +61,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 18
   0, 0, 0, 0, 6, 6, 6, 6, // 20
   0, 0, 0, 0, 8, 8, 8, 8, // 28
-  5, 0, 0, 0, 0, 0, 0, 0, // 30
+  5, 0, 0, 0, 8, 0, 0, 0, // 30
   7, 0, 0, 0, 0, 0, 0, 0, // 38
   0, 0, 0, 0, 0, 0, 0, 0, // 40
   0, 0, 0, 0, 0, 0, 0, 0, // 48
@@ -70,7 +70,7 @@ const static int extraWordsByCommand[] = {
   2, 0, 2, 0, 0, 3, 0, 3, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 0, 0, 0, // 70
-  0, 0, 0, 0, 0, 0, 0, 0, // 78
+  0, 0, 0, 0, 0, 2, 0, 0, // 78
   3, 0, 0, 0, 0, 0, 0, 0, // 80
   0, 0, 0, 0, 0, 0, 0, 0, // 88
   0, 0, 0, 0, 0, 0, 0, 0, // 90
@@ -284,7 +284,7 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
       }
       break;
     default:
-      // printf("Unknown GP1 cmd received: %08x\n", gdata);
+      printf("Unknown GP1 cmd received: %08x\n", gdata);
       break;
   }
 }
@@ -398,6 +398,11 @@ unsigned short blend15bit(unsigned short src, unsigned short dest, unsigned char
   return ((outR << 10) & 0x7c00) |
          ((outG << 5) & 0x03e0) |
          (outB & 0x001f);
+}
+
+vec2_t vertFromWord(unsigned int word) {
+  vec2_t vert = {.y = (short)(word >> 16 & 0xffff), .x = (short)(word & 0xffff)};
+  return vert;
 }
 
 // TODO: speedup e.g. with memset
@@ -599,14 +604,22 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
 
 void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   bool semiTrans = (buffer[0] >> 25) & 0x1;
-  bool blend = ((buffer[0] >> 26) & 0x1) && !((buffer[0] >> 24) & 0x1);
   unsigned short y = (buffer[1] >> 16) & 0xffff;
   unsigned short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   unsigned short v = (buffer[2] >> 8) & 0xff;
   unsigned short u = buffer[2] & 0xff;
-  unsigned short height = (buffer[3] >> 16) & 0xffff;
-  unsigned short width = buffer[3] & 0xffff;
+  unsigned short height;
+  unsigned short width;
+  switch (buffer[0] >> 24 & 0xff) { // TODO: succinctify by using relevant bits
+    case 0x67:
+      height = (buffer[3] >> 16) & 0xffff;
+      width = buffer[3] & 0xffff;
+      break;
+    case 0x7d:
+      height = width = 16;
+      break;
+  }
   vec2_t v0 = {.y = y, .x = x};
   vec2_t v1 = {.y = y, .x = x + width};
   vec2_t v2 = {.y = y + height, .x = x + width};
@@ -629,10 +642,10 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int color = buffer[0] & 0x00ffffff; // TODO: reverse to get BGR. i guess this gets ANDed with texture color?
   bool semiTrans = (buffer[0] & 0x02000000) == 0x02000000;
   bool blend =     (buffer[0] & 0x05000000) == 0x04000000;
-  vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
-  vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
-  vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
-  vec2_t v3 = {.y = (buffer[7] >> 16) & 0xffff, .x = (buffer[7] & 0xffff)};
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[3]);
+  vec2_t v2 = vertFromWord(buffer[5]);
+  vec2_t v3 = vertFromWord(buffer[7]);
   vec2_t uv0 = {.y = (buffer[2] >> 8) & 0xff, .x = (buffer[2] & 0xff)};
   vec2_t uv1 = {.y = (buffer[4] >> 8) & 0xff, .x = (buffer[4] & 0xff)};
   vec2_t uv2 = {.y = (buffer[6] >> 8) & 0xff, .x = (buffer[6] & 0xff)};
@@ -650,9 +663,9 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
 }
 
 void drawTriShaded(unsigned int * buffer, unsigned int count) {
-  vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
-  vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
-  vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[3]);
+  vec2_t v2 = vertFromWord(buffer[5]);
   unsigned int c0 = buffer[0] & 0x00ffffff;
   unsigned int c1 = buffer[2] & 0x00ffffff;
   unsigned int c2 = buffer[4] & 0x00ffffff;
@@ -661,11 +674,29 @@ void drawTriShaded(unsigned int * buffer, unsigned int count) {
   drawTexturedTri(tri, NULL, colors, NULL, NULL, false);
 }
 
+void drawTriTexturedShaded(unsigned int * buffer, unsigned int count) {
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[4]);
+  vec2_t v2 = vertFromWord(buffer[7]);
+  unsigned int c0 = buffer[0] & 0x00ffffff;
+  unsigned int c1 = buffer[3] & 0x00ffffff;
+  unsigned int c2 = buffer[6] & 0x00ffffff;
+  vec2_t uv0 = {.y = (buffer[2] >> 8) & 0xff, .x = (buffer[2] & 0xff)};
+  vec2_t uv1 = {.y = (buffer[5] >> 8) & 0xff, .x = (buffer[5] & 0xff)};
+  vec2_t uv2 = {.y = (buffer[8] >> 8) & 0xff, .x = (buffer[8] & 0xff)};
+  vec2_t tri[] = {v0, v1, v2};
+  unsigned int colors[] = {c0, c1, c2};
+  vec2_t texcoords[] = {uv0, uv1, uv2};
+  unsigned short texpage = (buffer[5] >> 16) & 0xffff;
+  unsigned short clut = (buffer[2] >> 16) & 0xffff;
+  drawTexturedTri(tri, texcoords, colors, texpage, clut, false);
+}
+
 void drawQuadShaded(unsigned int * buffer, unsigned int count) {
-  vec2_t v0 = {.y = (buffer[1] >> 16) & 0xffff, .x = (buffer[1] & 0xffff)};
-  vec2_t v1 = {.y = (buffer[3] >> 16) & 0xffff, .x = (buffer[3] & 0xffff)};
-  vec2_t v2 = {.y = (buffer[5] >> 16) & 0xffff, .x = (buffer[5] & 0xffff)};
-  vec2_t v3 = {.y = (buffer[7] >> 16) & 0xffff, .x = (buffer[7] & 0xffff)};
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[3]);
+  vec2_t v2 = vertFromWord(buffer[5]);
+  vec2_t v3 = vertFromWord(buffer[7]);
   unsigned int c0 = buffer[0] & 0x00ffffff;
   unsigned int c1 = buffer[2] & 0x00ffffff;
   unsigned int c2 = buffer[4] & 0x00ffffff;
@@ -693,7 +724,7 @@ void setupReadFromVram(unsigned int * buffer, unsigned int count) {
 void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
   unsigned int command = (buffer[0] >> 24) & 0xff;
 
-  // printf("Executing command %02x\n", command);
+  printf("Executing command %02x\n", command);
   switch (command) {
     case 0x00: // noop
       break;
@@ -709,6 +740,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x30: // shaded tri, opaque
       drawTriShaded(buffer, count);
       break;
+    case 0x34: // shaded tri, opaque, texblend
+      drawTriTexturedShaded(buffer, count);
+      break;
     case 0x38: // shaded quad, opaque
       drawQuadShaded(buffer, count);
       break;
@@ -720,6 +754,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       break;
     case 0x65:
     case 0x67:
+      drawTexturedRect(buffer, count);
+      break;
+    case 0x7d:
       drawTexturedRect(buffer, count);
       break;
     case 0x80:
@@ -753,8 +790,15 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       drawingArea.y2 = (buffer[0] >> 10) & 0x1ff;
       break;
     case 0xe5: // set drawing offset (typically within drawing area)
-      drawingOffset.x = buffer[0] & 0x3ff;
-      drawingOffset.y = (buffer[0] >> 10) & 0x3ff;
+      // HERE: 11 bits, not 10--and they're 11-bit signed values.
+      drawingOffset.x = buffer[0] & 0x7ff;
+      if (drawingOffset.x & 0x400) {
+        drawingOffset.x = drawingOffset.x & 0xfffff800;
+      }
+      drawingOffset.y = (buffer[0] >> 11) & 0x7ff;
+      if (drawingOffset.y & 0x400) {
+        drawingOffset.y = drawingOffset.y & 0xfffff800;
+      }
       break;
     case 0xe6: // mask bit setting
       STATUSREG &= 0xffffe7ff;
