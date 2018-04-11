@@ -510,6 +510,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
   unsigned int blendColor;
   unsigned short outColor;
   unsigned short * psxVus = (unsigned short *)psxVub;
+  unsigned short * psxVusTarget;
   
   // find top and bottom scanlines (yMin, yMax)
   // set left and right verts to leftmost and rightmost of top scanline (may be same)
@@ -592,11 +593,12 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
           ) & 0x000000ff);
         outColor = blend24bit(outColor, blendColor);
       }
+      psxVusTarget = psxVus + (VRAM_WIDTH * (y + drawingOffset.y) + (x + drawingOffset.x));
       if (semiTrans) {
-        outColor = blend15bit(outColor, psxVus[VRAM_WIDTH * y + x], texpageAlphaMode);
+        outColor = blend15bit(outColor, *psxVusTarget, texpageAlphaMode);
       }
       if (outColor != 0x0000) { // remember, "full-black" is actually "full transparent"
-        psxVus[VRAM_WIDTH * (y + drawingOffset.y) + (x + drawingOffset.x)] = outColor;
+        *psxVusTarget = outColor;
       }
     }
   }
@@ -611,14 +613,16 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   unsigned short u = buffer[2] & 0xff;
   unsigned short height;
   unsigned short width;
-  switch (buffer[0] >> 24 & 0xff) { // TODO: succinctify by using relevant bits
-    case 0x67:
-      height = (buffer[3] >> 16) & 0xffff;
-      width = buffer[3] & 0xffff;
-      break;
-    case 0x7d:
-      height = width = 16;
-      break;
+  unsigned char command = buffer[0] >> 24 & 0xff;
+  if (command >= 0x7c) { // TODO: succinctify by using relevant bits
+    height = width = 16;
+  } else if (command >= 0x74) {
+    height = width = 8;
+  } else if (command >= 0x6c) {
+    height = width = 1;
+  } else {
+    height = buffer[3] >> 16 & 0xffff;
+    width = buffer[3] & 0xffff;
   }
   vec2_t v0 = {.y = y, .x = x};
   vec2_t v1 = {.y = y, .x = x + width};
