@@ -62,7 +62,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 6, 6, 6, 6, // 20
   0, 0, 0, 0, 8, 8, 8, 8, // 28
   5, 0, 0, 0, 8, 0, 0, 0, // 30
-  7, 0, 0, 0, 0, 0, 0, 0, // 38
+  7, 0, 0, 0, 11, 0, 0, 0, // 38
   0, 0, 0, 0, 0, 0, 0, 0, // 40
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 0, 0, 0, 0, 0, // 50
@@ -475,19 +475,18 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
 
 // this is NOT semi-trans blending--this is "draw blended poly" blending
 unsigned short blend24bit(unsigned short color, unsigned int blender) {
-  unsigned short r = ((color >> 7) & 0xf8) * ((blender >> 16) & 0xff) / 0x100 * 2;
-  unsigned short g = ((color >> 2) & 0xf8) * ((blender >> 8) & 0xff) / 0x100 * 2;
-  unsigned short b = ((color << 3) & 0xf8) * ((blender >> 0) & 0xff) / 0x100 * 2;
-  
+  unsigned short b = (color >> 7 & 0xf8) * (blender >> 16 & 0xff) / 0x80;
+  unsigned short g = (color >> 2 & 0xf8) * (blender >> 8 & 0xff) / 0x80;
+  unsigned short r = (color << 3 & 0xf8) * (blender & 0xff) / 0x80;
   return (
     0x8000 | // alpha bit
-    ((r << 7) & 0x7c00) |
-    ((g << 2) & 0x03e0) |
-    ((b >> 3) & 0x001f)
+    (b << 7 & 0x7c00) |
+    (g << 2 & 0x03e0) |
+    (r >> 3 & 0x001f)
   );
 }
 
-void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned short texpage, unsigned short clut, bool semiTrans) {
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], unsigned short texpage, unsigned short clut, bool semiTrans) {
   short vertCount = 3;
   short yMin;
   short yMax;
@@ -507,6 +506,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
   short texpageAlphaMode = (texpage & 0x0060) >> 5;
   short texpageColorDepth = (texpage & 0x0180) >> 7;
   short texpageTextureDisable = (texpage & 0x0800) >> 11;
+  unsigned short blendR;
+  unsigned short blendG;
+  unsigned short blendB;
   unsigned int blendColor;
   unsigned short outColor;
   unsigned short * psxVus = (unsigned short *)psxVub;
@@ -572,26 +574,33 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
         uv.y = round(b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y);
         outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
       } else {
-        outColor = 0x7fff;
+        outColor = 0x0000;
       }
       if (colors) {
-        blendColor =
-          ((unsigned int)(
-            ((colors[0] >> 16) & 0xff) * b[0] +
-            ((colors[1] >> 16) & 0xff) * b[1] +
-            ((colors[2] >> 16) & 0xff) * b[2]
-          ) << 16) & 0x00ff0000 |
-          ((unsigned int)(
-            ((colors[0] >> 8) & 0xff) * b[0] +
-            ((colors[1] >> 8) & 0xff) * b[1] +
-            ((colors[2] >> 8) & 0xff) * b[2]
-          ) << 8) & 0x0000ff00 |
-          ((unsigned int)(
-            (colors[0] & 0xff) * b[0] +
-            (colors[1] & 0xff) * b[1] +
-            (colors[2] & 0xff) * b[2]
-          ) & 0x000000ff);
-        outColor = blend24bit(outColor, blendColor);
+        blendB = (unsigned short)(
+          (colors[0] >> 16 & 0xff) * b[0] +
+          (colors[1] >> 16 & 0xff) * b[1] +
+          (colors[2] >> 16 & 0xff) * b[2]
+        );
+        blendG = (unsigned short)(
+          (colors[0] >> 8 & 0xff) * b[0] +
+          (colors[1] >> 8 & 0xff) * b[1] +
+          (colors[2] >> 8 & 0xff) * b[2]
+        );
+        blendR = (unsigned short)(
+          (colors[0] & 0xff) * b[0] +
+          (colors[1] & 0xff) * b[1] +
+          (colors[2] & 0xff) * b[2]
+        );
+        if (texcoords) {
+          blendColor = (blendB << 16) | (blendG << 8) | (blendR);
+          outColor = blend24bit(outColor, blendColor);
+        } else {
+          outColor = 0x8000 | // alpha bit
+            (blendB << 7 & 0x7c00) |
+            (blendG << 2 & 0x03e0) |
+            (blendR >> 3 & 0x001f);
+        }
       }
       psxVusTarget = psxVus + (VRAM_WIDTH * (y + drawingOffset.y) + (x + drawingOffset.x));
       if (semiTrans) {
@@ -606,8 +615,8 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], int colors[], unsigned 
 
 void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   bool semiTrans = (buffer[0] >> 25) & 0x1;
-  unsigned short y = (buffer[1] >> 16) & 0xffff;
-  unsigned short x = buffer[1] & 0xffff;
+  signed short y = (buffer[1] >> 16) & 0xffff;
+  signed short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
   unsigned short v = (buffer[2] >> 8) & 0xff;
   unsigned short u = buffer[2] & 0xff;
@@ -706,11 +715,36 @@ void drawQuadShaded(unsigned int * buffer, unsigned int count) {
   unsigned int c2 = buffer[4] & 0x00ffffff;
   unsigned int c3 = buffer[6] & 0x00ffffff;
   vec2_t tri0[] = {v0, v1, v2};
-  vec2_t tri1[] = {v2, v1, v0};
+  vec2_t tri1[] = {v2, v1, v3};
   unsigned int colors0[] = {c0, c1, c2};
-  unsigned int colors1[] = {c2, c1, c0};
+  unsigned int colors1[] = {c2, c1, c3};
   drawTexturedTri(tri0, NULL, colors0, NULL, NULL, false);
   drawTexturedTri(tri1, NULL, colors1, NULL, NULL, false);
+}
+
+void drawQuadTexturedShaded(unsigned int * buffer, unsigned int count) {
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[4]);
+  vec2_t v2 = vertFromWord(buffer[7]);
+  vec2_t v3 = vertFromWord(buffer[10]);
+  unsigned int c0 = buffer[0] & 0x00ffffff;
+  unsigned int c1 = buffer[3] & 0x00ffffff;
+  unsigned int c2 = buffer[6] & 0x00ffffff;
+  unsigned int c3 = buffer[9] & 0x00ffffff;
+  vec2_t uv0 = {.y = (buffer[2] >> 8) & 0xff, .x = (buffer[2] & 0xff)};
+  vec2_t uv1 = {.y = (buffer[5] >> 8) & 0xff, .x = (buffer[5] & 0xff)};
+  vec2_t uv2 = {.y = (buffer[8] >> 8) & 0xff, .x = (buffer[8] & 0xff)};
+  vec2_t uv3 = {.y = (buffer[11] >> 8) & 0xff, .x = (buffer[11] & 0xff)};
+  vec2_t tri0[] = {v0, v1, v2};
+  vec2_t tri1[] = {v2, v1, v3};
+  unsigned int colors0[] = {c0, c1, c2};
+  unsigned int colors1[] = {c2, c1, c3};
+  vec2_t texcoords0[] = {uv0, uv1, uv2};
+  vec2_t texcoords1[] = {uv2, uv1, uv3};
+  unsigned short texpage = (buffer[5] >> 16) & 0xffff;
+  unsigned short clut = (buffer[2] >> 16) & 0xffff;
+  drawTexturedTri(tri0, texcoords0, colors0, texpage, clut, false);
+  drawTexturedTri(tri1, texcoords1, colors1, texpage, clut, false);
 }
 
 void setupReadFromVram(unsigned int * buffer, unsigned int count) {
@@ -749,6 +783,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       break;
     case 0x38: // shaded quad, opaque
       drawQuadShaded(buffer, count);
+      break;
+    case 0x3c: // shaded quad, opaque, texblend
+      drawQuadTexturedShaded(buffer, count);
       break;
     case 0x60: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
