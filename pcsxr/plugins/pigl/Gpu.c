@@ -448,25 +448,29 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
 }
 
 unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned short colorDepth, unsigned short clut) {
+  unsigned short u = uv.x & (~(textureWindowSetting.maskX * 8)) |
+    ((textureWindowSetting.offsetX & textureWindowSetting.maskX) * 8);
+  unsigned short v = uv.y & (~(textureWindowSetting.maskY * 8)) |
+    ((textureWindowSetting.offsetY & textureWindowSetting.maskY) * 8);
   // set pixel to the halfword beginning the line
-  unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + uv.y);
+  unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + v);
   unsigned short sample;
   unsigned short clutX = 16 * (clut & 0x3f);
   unsigned short clutY = (clut >> 6) & 0x1ff;
   
   switch (colorDepth) {
     case 0: // 4bit
-      pixel += uv.x / 4;
-      sample = (*pixel >> (4 * (uv.x % 4))) & 0xf;
+      pixel += u / 4;
+      sample = (*pixel >> (4 * (u % 4))) & 0xf;
       sample = *getPixel(clutX + sample, clutY);
       break;
     case 1: // 8bit
-      pixel += uv.x / 2;
-      sample = (*pixel >> (8 * (uv.x % 2))) & 0xff;
+      pixel += u / 2;
+      sample = (*pixel >> (8 * (u % 2))) & 0xff;
       sample = *getPixel(clutX + sample, clutY);
       break;
     case 2: // 16bit
-      pixel += uv.x;
+      pixel += u;
       sample = (*pixel) & 0xffff;
       break;
   }
