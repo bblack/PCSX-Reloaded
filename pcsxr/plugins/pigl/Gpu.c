@@ -67,9 +67,9 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 0, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
-  2, 0, 2, 0, 0, 3, 0, 3, // 60
+  2, 0, 2, 0, 3, 3, 0, 3, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
-  0, 0, 0, 0, 0, 0, 0, 0, // 70
+  0, 0, 0, 0, 0, 2, 0, 0, // 70
   0, 0, 0, 0, 0, 2, 0, 0, // 78
   3, 0, 0, 0, 0, 0, 0, 0, // 80
   0, 0, 0, 0, 0, 0, 0, 0, // 88
@@ -307,7 +307,7 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
   // iSize is the number of WORDS (i.e. pixel PAIRS) to read
   int pixelNum = 0;
   unsigned short * usMem = (unsigned short *) pMem;
-  
+
   while ((GPURead.currentX < GPURead.x + GPURead.width) &&
          (GPURead.currentY < GPURead.y + GPURead.height) &&
          (pixelNum < iSize * 2)) {
@@ -471,7 +471,7 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
   unsigned short sample;
   unsigned short clutX = 16 * (clut & 0x3f);
   unsigned short clutY = (clut >> 6) & 0x1ff;
-  
+
   switch (colorDepth) {
     case 0: // 4bit
       if (u > 255) u = 255; // clamp
@@ -521,7 +521,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
     (verts[1].y - verts[2].y) * (verts[2].x - verts[0].x);
   float b[] = {0, 0, 0};
   vec2_t uv;
-  
+
   short texpageX = texpage & 0x000f; // *64
   short texpageY = (texpage & 0x0010) >> 4; // *256
   short texpageAlphaMode = (texpage & 0x0060) >> 5;
@@ -534,7 +534,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
   unsigned short outColor;
   unsigned short * psxVus = (unsigned short *)psxVub;
   unsigned short * psxVusTarget;
-  
+
   // find top and bottom scanlines (yMin, yMax)
   // set left and right verts to leftmost and rightmost of top scanline (may be same)
   for (int i = 0; i < vertCount; i++) {
@@ -635,7 +635,10 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
 }
 
 void drawTexturedRect(unsigned int * buffer, unsigned int count) {
-  bool semiTrans = (buffer[0] >> 25) & 0x1;
+  bool semiTrans = buffer[0] & 0x02000000;
+  bool blend = !(buffer[0] & 0x01000000);
+  unsigned int color = buffer[0] & 0x00ffffff;
+  unsigned int colors[3] = {color, color, color}; // TODO: don't allocate this when not blending
   signed short y = (buffer[1] >> 16) & 0xffff;
   signed short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
@@ -667,9 +670,9 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   vec2_t texcoords0[] = {uv0, uv1, uv2};
   vec2_t texcoords1[] = {uv2, uv3, uv0};
   unsigned short texpage = statusReg & 0x7ff; // TODO double-check this
-  
-  drawTexturedTri(tri0, texcoords0, NULL, texpage, clut, semiTrans);
-  drawTexturedTri(tri1, texcoords1, NULL, texpage, clut, semiTrans);
+
+  drawTexturedTri(tri0, texcoords0, blend ? colors : NULL, texpage, clut, semiTrans);
+  drawTexturedTri(tri1, texcoords1, blend ? colors : NULL, texpage, clut, semiTrans);
 }
 
 void drawTriTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
@@ -686,7 +689,7 @@ void drawTriTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int colors[] = {color, color, color};
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
-  
+
   drawTexturedTri(tri, texcoords, colors, texpage, clut, semiTrans);
 }
 
@@ -708,7 +711,7 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int colors[] = {color, color, color};
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
-  
+
   drawTexturedTri(tri0, texcoords0, colors, texpage, clut, semiTrans);
   drawTexturedTri(tri1, texcoords1, colors, texpage, clut, semiTrans);
 }
@@ -845,10 +848,10 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x62: // single-color rect, var size, semi-trans
       drawSingleColorRectVarSizeSemiTrans(buffer, count);
       break;
+    case 0x64: // when opponent strikes cloud in battle
     case 0x65:
     case 0x67:
-      drawTexturedRect(buffer, count);
-      break;
+    case 0x75:
     case 0x7d:
       drawTexturedRect(buffer, count);
       break;
