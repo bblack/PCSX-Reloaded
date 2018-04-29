@@ -456,16 +456,14 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
 }
 
 unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned short colorDepth, unsigned short clut) {
-  unsigned short u = uv.x & (~(textureWindowSetting.maskX * 8)) |
+  // TODO: either workaround here, or truly fix in rasterizer,
+  // the case when rounding error causes a pixel at scanline edge
+  // to be mapped outside the texwindow. worst case is when that
+  // means invalid memory address.
+  short u = uv.x & (~(textureWindowSetting.maskX * 8)) |
     ((textureWindowSetting.offsetX & textureWindowSetting.maskX) * 8);
-  unsigned short v = uv.y & (~(textureWindowSetting.maskY * 8)) |
+  short v = uv.y & (~(textureWindowSetting.maskY * 8)) |
     ((textureWindowSetting.offsetY & textureWindowSetting.maskY) * 8);
-  // Clamp uv coords, because on the first encounter in FF7, there was a rounding
-  // error in the uv mapping: uv.x = round(-0.7...) = -1, causing segfault
-  // TODO: Decide if this should be necessary, and either improve or remove.
-  if (u < 0) u = 0;
-  if (v < 0) v = 0;
-  if (v > 255) v = 255;
   // set pixel to the halfword beginning the line
   unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + v);
   unsigned short sample;
@@ -474,19 +472,16 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
 
   switch (colorDepth) {
     case 0: // 4bit
-      if (u > 255) u = 255; // clamp
       pixel += u / 4;
       sample = (*pixel >> (4 * (u % 4))) & 0xf;
       sample = *getPixel(clutX + sample, clutY);
       break;
     case 1: // 8bit
-      if (u > 127) u = 127; // clamp
       pixel += u / 2;
       sample = (*pixel >> (8 * (u % 2))) & 0xff;
       sample = *getPixel(clutX + sample, clutY);
       break;
     case 2: // 16bit
-      if (u > 63) u = 63; // clamp
       pixel += u;
       sample = (*pixel) & 0xffff;
       break;
@@ -937,7 +932,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
     // printf("wrote %d words to vram\n", wordNum);
   } else {
     for (int i = 0; i < iSize; i++) {
-      printf("GP0(%08xh)\n", pMem[i]);
+//      printf("GP0(%08xh)\n", pMem[i]);
       commandWordsBuffer[commandWordsReceived] = pMem[i];
       if (commandWordsReceived == 0) {
         command = (pMem[i] >> 24) & 0xff;
