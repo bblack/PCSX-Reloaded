@@ -365,10 +365,10 @@ unsigned short blend15bit(unsigned short src, unsigned short dest, unsigned char
   unsigned short outR;
   unsigned short outG;
   unsigned short outB;
-  if (src == 0) {
+  if (src == 0x0000) {
     return dest;
   }
-  if (!(src & 0x8000)) { // alpha bit = 0?
+  if (!(src & 0x8000)) { // if alpha bit = 0, return
     return src;
   }
   // TODO: use blend func indicated by status reg bits
@@ -403,9 +403,10 @@ unsigned short blend15bit(unsigned short src, unsigned short dest, unsigned char
     default:
       printf("alpha mode %d not implemented\n", alphaMode);
   }
-  return ((outR << 10) & 0x7c00) |
-         ((outG << 5) & 0x03e0) |
-         (outB & 0x001f);
+  return 0x8000 | // alpha bit on. TODO: respect mask bit setting (statusReg bits 11 and 12, set by GP0(e6))
+    ((outR << 10) & 0x7c00) |
+    ((outG << 5) & 0x03e0) |
+    (outB & 0x001f);
 }
 
 vec2_t vertFromWord(unsigned int word) {
@@ -609,8 +610,10 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
           (colors[2] & 0xff) * b[2]
         );
         if (texcoords) {
-          blendColor = (blendB << 16) | (blendG << 8) | (blendR);
-          outColor = blend24bit(outColor, blendColor);
+          if (outColor != 0x0000) { // remember, "full-black" is actually "full transparent"
+            blendColor = (blendB << 16) | (blendG << 8) | (blendR);
+            outColor = blend24bit(outColor, blendColor);
+          }
         } else {
           outColor = 0x8000 | // alpha bit
             (blendB << 7 & 0x7c00) |
@@ -642,6 +645,7 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   unsigned short height;
   unsigned short width;
   unsigned char command = buffer[0] >> 24 & 0xff;
+  // TODO: should we be adding one pixel due to the top-left rule?
   if (command >= 0x7c) { // TODO: succinctify by using relevant bits
     height = width = 16;
   } else if (command >= 0x74) {
@@ -721,7 +725,8 @@ void drawTriShaded(unsigned int * buffer, unsigned int count) {
   unsigned int c2 = buffer[4] & 0x00ffffff;
   vec2_t tri[] = {v0, v1, v2};
   unsigned int colors[] = {c0, c1, c2};
-  drawTexturedTri(tri, NULL, colors, NULL, NULL, semiTrans);
+  unsigned int texpage = statusReg & 0x7ff;
+  drawTexturedTri(tri, NULL, colors, texpage, NULL, semiTrans);
 }
 
 void drawTriTexturedShaded(unsigned int * buffer, unsigned int count) {
