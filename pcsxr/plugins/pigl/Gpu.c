@@ -552,9 +552,6 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
   // TODO: speedup
   // TODO: expect circular linked list to prevent all this modulo and index crap
   for (int y = yMin; y < yMax; y++) {
-    if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2) {
-      continue;
-    }
     if (verts[vertIndexNextL].y == y) {
       vertIndexL = vertIndexNextL;
       vertIndexNextL = (vertIndexNextL - 1 + vertCount) % vertCount;
@@ -562,6 +559,9 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
     if (verts[vertIndexNextR].y == y) {
       vertIndexR = vertIndexNextR;
       vertIndexNextR = (vertIndexNextR + 1) % vertCount;
+    }
+    if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2) { // maybe this should be moved down?
+      continue;
     }
     // ((y - y0)/(y1 - y0))(x1 - x0) + x0
     xLeft = verts[vertIndexL].x + (
