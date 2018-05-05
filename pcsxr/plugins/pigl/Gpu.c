@@ -695,6 +695,7 @@ void drawTriTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
 void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int color = buffer[0] & 0x00ffffff;
   bool semiTrans = buffer[0] & 0x02000000;
+  bool blend = !(buffer[0] & 0x01000000);
   vec2_t v0 = vertFromWord(buffer[1]);
   vec2_t v1 = vertFromWord(buffer[3]);
   vec2_t v2 = vertFromWord(buffer[5]);
@@ -707,12 +708,11 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   vec2_t tri1[] = {v2, v1, v3}; // make it clockwise TODO: remove stupid hack
   vec2_t texcoords0[] = {uv0, uv1, uv2};
   vec2_t texcoords1[] = {uv2, uv1, uv3};
-  unsigned int colors[] = {color, color, color};
+  unsigned int colors[] = {color, color, color}; // TODO: don't allocate when not blending
   unsigned short texpage = (buffer[4] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
-
-  drawTexturedTri(tri0, texcoords0, colors, texpage, clut, semiTrans);
-  drawTexturedTri(tri1, texcoords1, colors, texpage, clut, semiTrans);
+  drawTexturedTri(tri0, texcoords0, blend ? colors : NULL, texpage, clut, semiTrans);
+  drawTexturedTri(tri1, texcoords1, blend ? colors : NULL, texpage, clut, semiTrans);
 }
 
 void drawTriShaded(unsigned int * buffer, unsigned int count) {
@@ -805,7 +805,7 @@ void setupReadFromVram(unsigned int * buffer, unsigned int count) {
 void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
   unsigned int command = (buffer[0] >> 24) & 0xff;
 
-  printf("Executing command %02x\n", command);
+  // printf("Executing command %02x\n", command);
   switch (command) {
     case 0x00: // noop
       break;
@@ -821,6 +821,7 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       drawTriTexturedTextureBlend(buffer, count);
       break;
     case 0x2c:
+    case 0x2d:
     case 0x2e:
       drawQuadTexturedTextureBlend(buffer, count);
       break;
