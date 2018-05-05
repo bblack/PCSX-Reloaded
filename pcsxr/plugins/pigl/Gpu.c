@@ -640,10 +640,12 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   signed short y = (buffer[1] >> 16) & 0xffff;
   signed short x = buffer[1] & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
-  unsigned short v = (buffer[2] >> 8) & 0xff;
-  unsigned short u = buffer[2] & 0xff;
+  unsigned short uMin = buffer[2] & 0xff;
+  unsigned short vMin = (buffer[2] >> 8) & 0xff;
   unsigned short height;
   unsigned short width;
+  unsigned short uMax;
+  unsigned short vMax;
   unsigned char command = buffer[0] >> 24 & 0xff;
   // TODO: should we be adding one pixel due to the top-left rule?
   if (command >= 0x7c) { // TODO: succinctify by using relevant bits
@@ -656,14 +658,18 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
     height = buffer[3] >> 16 & 0xffff;
     width = buffer[3] & 0xffff;
   }
+  uMax = uMin + width;
+  if (uMax > 255) uMax = 255;
+  vMax = vMin + height;
+  if (vMax > 255) vMax = 255;
   vec2_t v0 = {.y = y, .x = x};
   vec2_t v1 = {.y = y, .x = x + width};
   vec2_t v2 = {.y = y + height, .x = x + width};
   vec2_t v3 = {.y = y + height, .x = x};
-  vec2_t uv0 = {.y = v, .x = u};
-  vec2_t uv1 = {.y = v, .x = u + width};
-  vec2_t uv2 = {.y = v + height, .x = u + width};
-  vec2_t uv3 = {.y = v + height, .x = u};
+  vec2_t uv0 = {.y = vMin, .x = uMin};
+  vec2_t uv1 = {.y = vMin, .x = uMax};
+  vec2_t uv2 = {.y = vMax, .x = uMax};
+  vec2_t uv3 = {.y = vMax, .x = uMin};
   vec2_t tri0[] = {v0, v1, v2};
   vec2_t tri1[] = {v2, v3, v0};
   vec2_t texcoords0[] = {uv0, uv1, uv2};
