@@ -59,18 +59,18 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 08
   0, 0, 0, 0, 0, 0, 0, 0, // 10
   0, 0, 0, 0, 0, 0, 0, 0, // 18
-  0, 0, 0, 0, 6, 6, 6, 6, // 20
-  0, 0, 0, 0, 8, 8, 8, 8, // 28
+  3, 0, 3, 0, 6, 6, 6, 6, // 20
+  4, 0, 4, 0, 8, 8, 8, 8, // 28
   5, 0, 5, 0, 8, 0, 0, 0, // 30
-  7, 0, 7, 0, 11, 0, 0, 0, // 38
-  0, 0, 0, 0, 0, 0, 0, 0, // 40
+  7, 7, 7, 7, 11, 0, 11, 0, // 38
+  2, 0, 2, 0, 0, 0, 0, 0, // 40
   0, 0, 0, 0, 0, 0, 0, 0, // 48
-  0, 0, 0, 0, 0, 0, 0, 0, // 50
+  0, 0, 0, 3, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
-  2, 0, 2, 0, 3, 3, 0, 3, // 60
+  2, 0, 2, 0, 3, 3, 3, 3, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 2, 0, 0, // 70
-  0, 0, 0, 0, 0, 2, 0, 0, // 78
+  1, 0, 0, 0, 0, 2, 0, 0, // 78
   3, 0, 0, 0, 0, 0, 0, 0, // 80
   0, 0, 0, 0, 0, 0, 0, 0, // 88
   0, 0, 0, 0, 0, 0, 0, 0, // 90
@@ -92,12 +92,12 @@ static unsigned int commandWordsExpected;
 static unsigned int commandWordsReceived;
 static unsigned int commandWordsBuffer[256];
 typedef struct {
-  int x;
-  int y;
-  int width;
-  int height;
-  int currentX;
-  int currentY;
+  signed short x;
+  signed short y;
+  unsigned short width;
+  unsigned short height;
+  signed short currentX;
+  signed short currentY;
 } GPUWrite_t;
 static GPUWrite_t GPUWrite;
 static GPUWrite_t GPURead;
@@ -345,8 +345,8 @@ void setupWriteTextureToVram(unsigned int * buffer, unsigned int count) {
   GPUWrite.width = buffer[2] & 0xffff;
   GPUWrite.height = (buffer[2] >> 16) & 0xffff;
   treatWordsAsPixelData = true;
-  // printf("Prepared CPU->VRAM: %d * %d @ (%d, %d)\n",
-  //       GPUWrite.width, GPUWrite.height, GPUWrite.x, GPUWrite.y);
+//   printf("Prepared CPU->VRAM: %d * %d @ (%d, %d)\n",
+//         GPUWrite.width, GPUWrite.height, GPUWrite.x, GPUWrite.y);
 }
 
 unsigned short get15from24(unsigned int color) {
@@ -409,9 +409,133 @@ unsigned short blend15bit(unsigned short src, unsigned short dest, unsigned char
     (outB & 0x001f);
 }
 
+unsigned int blend24(unsigned int c0, unsigned int c1, float d) {
+  unsigned int cout = 0x000000;
+  unsigned int channelOut;
+  for (int shift = 0; shift < 24; shift += 8) {
+    channelOut =
+    (c0 >> shift & 0xff) * d +
+    (c1 >> shift & 0xff) * (1 - d);
+    if (channelOut > 0xff) channelOut = 0xff;
+    cout |= ((short)channelOut) << shift;
+  }
+  return cout;
+}
+
 vec2_t vertFromWord(unsigned int word) {
   vec2_t vert = {.y = (short)(word >> 16 & 0xffff), .x = (short)(word & 0xffff)};
   return vert;
+}
+
+// TODO: dry with varsize equivalent
+// TODO: use drawing offset
+void drawSingleColorRect16Opaque(unsigned int * buffer, unsigned int count) {
+  int color = buffer[0] & 0xffffff; // 24-bit
+  int color15 = get15from24(color);
+  int originY = (buffer[1] >> 16) & 0xffff;
+  int originX = buffer[1] & 0xffff;
+  int height = 16;
+  int width = 16;
+  unsigned short * pixel;
+  
+  for (int y = originY; y < originY + height; y++) {
+    if (y < drawingArea.y1 || y > drawingArea.y2) {
+      continue;
+    }
+    for (int x = originX; x < originX + width; x++) {
+      if (x < drawingArea.x1 || x > drawingArea.x2) {
+        continue;
+      }
+      pixel = getPixel(x, y);
+      *pixel = color15;
+    }
+  }
+}
+
+// TODO: DRY w/ drawshadedline
+void drawLine(unsigned int * buffer, unsigned int count) {
+  unsigned int color = buffer[0] & 0x00ffffff;
+  signed short x0 = buffer[1] & 0xffff;
+  signed short y0 = buffer[1] >> 16 & 0xffff;
+  signed short x1 = buffer[2] & 0xffff;
+  signed short y1 = buffer[2] >> 16 & 0xffff;
+  bool semiTrans = buffer[0] & 0x02000000;
+  short x;
+  short y;
+  unsigned short * pixel;
+  unsigned short alphaMode = semiTrans ? (statusReg >> 5 & 0x3) : 0;
+  // TODO: bresenham
+  // TODO: use drawing offset!
+  // TODO: clip when outside drawing area! these are causing segfault on starting a race!
+  if (abs(x0 - x1) > abs(y0 - y1)) {
+    for (x = x0; x != x1; x += x0 > x1 ? -1 : 1) {
+      y = (((float)x - x0) / (x1 - x0)) * (y1 - y0) + y0;
+      if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2)
+        continue;
+      if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2)
+        continue;
+      pixel = getPixel(x + drawingOffset.x, y + drawingOffset.y);
+      *pixel = blend15bit(get15from24(color), *pixel, alphaMode);
+    }
+  } else {
+    for (y = y0; y != y1; y += y0 > y1 ? -1 : 1) {
+      x = (((float)y - y0) / (y1 - y0)) * (x1 - x0) + x0;
+      if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2)
+        continue;
+      if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2)
+        continue;
+      pixel = getPixel(x + drawingOffset.x, y + drawingOffset.y);
+      *pixel = blend15bit(get15from24(color), *pixel, alphaMode);
+    }
+  }
+}
+
+void drawShadedLine(unsigned int * buffer, unsigned int count) {
+  unsigned int color0 = buffer[0] & 0x00ffffff;
+  unsigned int color1 = buffer[2] & 0x00ffffff;
+  signed short x0 = buffer[1] & 0xffff;
+  signed short y0 = buffer[1] >> 16 & 0xffff;
+  signed short x1 = buffer[3] & 0xffff;
+  signed short y1 = buffer[3] >> 16 & 0xffff;
+  bool semiTrans = buffer[0] & 0x02000000;
+  short x;
+  short y;
+  unsigned short * pixel;
+  unsigned short alphaMode = semiTrans ? (statusReg >> 5 & 0x3) : 0;
+  // TODO: bresenham
+  // TODO: use drawing offset
+  // TODO: clip when outside drawing area
+  if (abs(x0 - x1) > abs(y0 - y1)) {
+    for (x = x0; x != x1; x += x0 > x1 ? -1 : 1) {
+      y = (((float)x - x0) / (x1 - x0)) * (y1 - y0) + y0;
+      if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2)
+        continue;
+      if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2)
+        continue;
+      pixel = getPixel(x + drawingOffset.x, y + drawingOffset.y);
+      pixel = getPixel(x, y);
+      *pixel = blend15bit(
+        get15from24(blend24(color0, color1, (float)x / (x1 - x0))),
+        *pixel,
+        alphaMode
+      );
+    }
+  } else {
+    for (y = y0; y != y1; y += y0 > y1 ? -1 : 1) {
+      x = (((float)y - y0) / (y1 - y0)) * (x1 - x0) + x0;
+      if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2)
+        continue;
+      if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2)
+        continue;
+      pixel = getPixel(x + drawingOffset.x, y + drawingOffset.y);
+      pixel = getPixel(x, y);
+      *pixel = blend15bit(
+        get15from24(blend24(color0, color1, (float)y / (y1 - y0))),
+        *pixel,
+        alphaMode
+      );
+    }
+  }
 }
 
 // TODO: speedup e.g. with memset
@@ -560,7 +684,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
       vertIndexR = vertIndexNextR;
       vertIndexNextR = (vertIndexNextR + 1) % vertCount;
     }
-    if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2) { // maybe this should be moved down?
+    if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2) {
       continue;
     }
     // ((y - y0)/(y1 - y0))(x1 - x0) + x0
@@ -575,7 +699,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
         (verts[vertIndexNextR].x - verts[vertIndexR].x)
     );
     // draw scanline
-    for (int x = (short)xLeft; x < (short)xRight; x++) {
+    for (int x = (short)(xLeft + 0.5); x < (short)(xRight + 0.5); x++) {
       if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2) {
         continue;
       }
@@ -680,6 +804,18 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   drawTexturedTri(tri1, texcoords1, blend ? colors : NULL, texpage, clut, semiTrans);
 }
 
+void drawSingleColorTri(unsigned int * buffer, unsigned int count) {
+  unsigned int color = buffer[0] & 0x00ffffff;
+  bool semiTrans = buffer[0] & 0x02000000;
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[2]);
+  vec2_t v2 = vertFromWord(buffer[3]);
+  vec2_t tri[] = {v0, v1, v2};
+  unsigned int colors[] = {color, color, color};
+  
+  drawTexturedTri(tri, NULL, colors, NULL, NULL, semiTrans);
+}
+
 void drawTriTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   unsigned int color = buffer[0] & 0x00ffffff;
   bool semiTrans = buffer[0] & 0x02000000;
@@ -753,6 +889,20 @@ void drawTriTexturedShaded(unsigned int * buffer, unsigned int count) {
   drawTexturedTri(tri, texcoords, colors, texpage, clut, false);
 }
 
+void drawQuad(unsigned int * buffer, unsigned int count) {
+  bool semiTrans = buffer[0] & 0x02000000;
+  vec2_t v0 = vertFromWord(buffer[1]);
+  vec2_t v1 = vertFromWord(buffer[2]);
+  vec2_t v2 = vertFromWord(buffer[3]);
+  vec2_t v3 = vertFromWord(buffer[4]);
+  unsigned int color = buffer[0] & 0x00ffffff;
+  vec2_t tri0[] = {v0, v1, v2};
+  vec2_t tri1[] = {v2, v1, v3};
+  unsigned int colors[] = {color, color, color};
+  drawTexturedTri(tri0, NULL, colors, NULL, NULL, semiTrans);
+  drawTexturedTri(tri1, NULL, colors, NULL, NULL, semiTrans);
+}
+
 void drawQuadShaded(unsigned int * buffer, unsigned int count) {
   bool semiTrans = buffer[0] & 0x02000000;
   vec2_t v0 = vertFromWord(buffer[1]);
@@ -792,8 +942,9 @@ void drawQuadTexturedShaded(unsigned int * buffer, unsigned int count) {
   vec2_t texcoords1[] = {uv2, uv1, uv3};
   unsigned short texpage = (buffer[5] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
-  drawTexturedTri(tri0, texcoords0, colors0, texpage, clut, false);
-  drawTexturedTri(tri1, texcoords1, colors1, texpage, clut, false);
+  bool semitrans = buffer[0] & 0x02000000;
+  drawTexturedTri(tri0, texcoords0, colors0, texpage, clut, semitrans);
+  drawTexturedTri(tri1, texcoords1, colors1, texpage, clut, semitrans);
 }
 
 void setupReadFromVram(unsigned int * buffer, unsigned int count) {
@@ -820,15 +971,22 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x02: // single-color rect, var size, opaque
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
-    case 0x24:
-      drawTriTexturedTextureBlend(buffer, count);
+    case 0x20: // the simplest possible poly. single color, 3 points, no shading, no transparency.
+    case 0x22:
+      drawSingleColorTri(buffer, count);
       break;
+    case 0x24:
     case 0x26:
       drawTriTexturedTextureBlend(buffer, count);
+      break;
+    case 0x28:
+    case 0x2a:
+      drawQuad(buffer, count);
       break;
     case 0x2c:
     case 0x2d:
     case 0x2e:
+    case 0x2f:
       drawQuadTexturedTextureBlend(buffer, count);
       break;
     case 0x30: // shaded tri, opaque
@@ -841,22 +999,39 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       drawTriTexturedShaded(buffer, count);
       break;
     case 0x38: // shaded quad, opaque
+    case 0x39:
       drawQuadShaded(buffer, count);
       break;
     case 0x3c: // shaded quad, opaque, texblend
       drawQuadTexturedShaded(buffer, count);
       break;
     case 0x3a: // shaded quad, semi-trans
+    case 0x3b:
       drawQuadShaded(buffer, count);
       break;
+    case 0x3e:
+      drawQuadTexturedShaded(buffer, count);
+      break;
+    case 0x40:
+    case 0x42:
+      drawLine(buffer, count);
+      break;
+    case 0x53:
+      drawShadedLine(buffer, count);
+      break;
     case 0x60: // single-color rect, var size, opaque
+    case 0x61:
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
     case 0x62: // single-color rect, var size, semi-trans
       drawSingleColorRectVarSizeSemiTrans(buffer, count);
       break;
+    case 0x78:
+      drawSingleColorRect16Opaque(buffer, count);
+      break;
     case 0x64: // when opponent strikes cloud in battle
     case 0x65:
+    case 0x66:
     case 0x67:
     case 0x75:
     case 0x7d:
