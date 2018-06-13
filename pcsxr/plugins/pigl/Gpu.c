@@ -699,7 +699,8 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
         (verts[vertIndexNextR].x - verts[vertIndexR].x)
     );
     // draw scanline
-    for (int x = (short)(xLeft + 0.5); x < (short)(xRight + 0.5); x++) {
+    // TODO: move CW/CCW agnostic code to a more performant place, or make it more readable?
+    for (int x = (short)((xLeft < xRight ? xLeft : xRight) + 0.5); x < (short)((xLeft < xRight ? xRight : xLeft) + 0.5); x++) {
       if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2) {
         continue;
       }
@@ -847,7 +848,7 @@ void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
   vec2_t uv2 = {.y = (buffer[6] >> 8) & 0xff, .x = (buffer[6] & 0xff)};
   vec2_t uv3 = {.y = (buffer[8] >> 8) & 0xff, .x = (buffer[8] & 0xff)};
   vec2_t tri0[] = {v0, v1, v2};
-  vec2_t tri1[] = {v2, v1, v3}; // make it clockwise TODO: remove stupid hack
+  vec2_t tri1[] = {v2, v1, v3};
   vec2_t texcoords0[] = {uv0, uv1, uv2};
   vec2_t texcoords1[] = {uv2, uv1, uv3};
   unsigned int colors[] = {color, color, color}; // TODO: don't allocate when not blending
