@@ -74,14 +74,6 @@ const static int extraWordsByCommand[] = {
 static unsigned int commandWordsExpected;
 static unsigned int commandWordsReceived;
 static unsigned int commandWordsBuffer[256];
-typedef struct {
-  signed short x;
-  signed short y;
-  unsigned short width;
-  unsigned short height;
-  signed short currentX;
-  signed short currentY;
-} GPUWrite_t;
 static GPUWrite_t GPUWrite;
 static GPUWrite_t GPURead;
 static GLuint vramTexture;

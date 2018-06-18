@@ -10,16 +10,25 @@
 
 #include "draw.h"
 
-extern unsigned char * psxVub;
-extern rect_t drawingArea;
-extern int statusReg;
-extern vec2_t drawingOffset;
 typedef struct {
   short maskX;
   short maskY;
   short offsetX;
   short offsetY;
 } textureWindowSetting_t;
+typedef struct {
+  signed short x;
+  signed short y;
+  unsigned short width;
+  unsigned short height;
+  signed short currentX;
+  signed short currentY;
+} GPUWrite_t;
+
+extern unsigned char * psxVub;
+extern rect_t drawingArea;
+extern int statusReg;
+extern vec2_t drawingOffset;
 extern textureWindowSetting_t textureWindowSetting;
 
 #endif /* Gpu_h */
