@@ -24,6 +24,7 @@
 		3986C94F1ED212960097EC16 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 551A76D2178695C70052D185 /* OpenGL.framework */; };
 		3986C9521ED21C510097EC16 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 551A76D1178695BD0052D185 /* GLUT.framework */; };
 		3986C9531ED21C830097EC16 /* window.m in Sources */ = {isa = PBXBuildFile; fileRef = 3986C94B1ED206C20097EC16 /* window.m */; };
+		39DE201920D214500080F13C /* draw.c in Sources */ = {isa = PBXBuildFile; fileRef = 39DE201820D214500080F13C /* draw.c */; };
 		550128951A11817800468D09 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 550128911A11817800468D09 /* InfoPlist.strings */; };
 		550128961A11817800468D09 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 550128931A11817800468D09 /* Localizable.strings */; };
 		550128991A1181A000468D09 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 550128971A1181A000468D09 /* InfoPlist.strings */; };
@@ -460,6 +461,10 @@
 		3986C9451ECD47070097EC16 /* pigl.exp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.exports; name = pigl.exp; path = ../../plugins/pigl/pigl.exp; sourceTree = "<group>"; };
 		3986C94A1ED206880097EC16 /* window.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = window.h; sourceTree = "<group>"; };
 		3986C94B1ED206C20097EC16 /* window.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = window.m; sourceTree = "<group>"; };
+		39DE201720D214500080F13C /* draw.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = draw.h; sourceTree = "<group>"; };
+		39DE201820D214500080F13C /* draw.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = draw.c; sourceTree = "<group>"; };
+		39DE201A20D214AD0080F13C /* Gpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Gpu.h; sourceTree = "<group>"; };
+		39DE201B20D217EE0080F13C /* PSEmu Plugin Defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "PSEmu Plugin Defs.h"; sourceTree = "<group>"; };
 		5501288E1A1180C800468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		5501288F1A1180E500468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		550128901A11811600468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -1191,10 +1196,14 @@
 		3986C93A1ECD1B3D0097EC16 /* pigl */ = {
 			isa = PBXGroup;
 			children = (
+				39DE201B20D217EE0080F13C /* PSEmu Plugin Defs.h */,
+				39DE201A20D214AD0080F13C /* Gpu.h */,
 				3986C93F1ECD1BF60097EC16 /* Gpu.c */,
 				3986C9451ECD47070097EC16 /* pigl.exp */,
 				3986C94A1ED206880097EC16 /* window.h */,
 				3986C94B1ED206C20097EC16 /* window.m */,
+				39DE201720D214500080F13C /* draw.h */,
+				39DE201820D214500080F13C /* draw.c */,
 			);
 			name = pigl;
 			path = ../plugins/pigl;
@@ -2395,6 +2404,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3986C9531ED21C830097EC16 /* window.m in Sources */,
+				39DE201920D214500080F13C /* draw.c in Sources */,
 				3986C9441ECD43C80097EC16 /* Gpu.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
