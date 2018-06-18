@@ -39,5 +39,9 @@ void drawShadedLine(unsigned int * buffer, unsigned int count);
 void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int count);
 void drawSingleColorRect16Opaque(unsigned int * buffer, unsigned int count);
 void drawTexturedRect(unsigned int * buffer, unsigned int count);
+void copyVramToVram(unsigned int * buffer);
+
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], unsigned short texpage, unsigned short clut, bool semiTrans);
+unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned short colorDepth, unsigned short clut);
 
 #endif /* draw_h */

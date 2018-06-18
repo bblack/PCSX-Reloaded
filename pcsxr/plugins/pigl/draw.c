@@ -461,3 +461,167 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
   drawTexturedTri(tri0, texcoords0, blend ? colors : NULL, texpage, clut, semiTrans);
   drawTexturedTri(tri1, texcoords1, blend ? colors : NULL, texpage, clut, semiTrans);
 }
+
+void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], unsigned short texpage, unsigned short clut, bool semiTrans) {
+  short vertCount = 3;
+  short yMin;
+  short yMax;
+  short vertIndexL;
+  short vertIndexR;
+  short vertIndexNextL;
+  short vertIndexNextR;
+  float xLeft;
+  float xRight;
+  float doubleTriArea = (verts[0].y - verts[2].y) * (verts[1].x - verts[2].x) +
+  (verts[1].y - verts[2].y) * (verts[2].x - verts[0].x);
+  float b[] = {0, 0, 0};
+  vec2_t uv;
+  
+  short texpageX = texpage & 0x000f; // *64
+  short texpageY = (texpage & 0x0010) >> 4; // *256
+  short texpageAlphaMode = (texpage & 0x0060) >> 5;
+  short texpageColorDepth = (texpage & 0x0180) >> 7;
+  short texpageTextureDisable = (texpage & 0x0800) >> 11;
+  unsigned short blendR;
+  unsigned short blendG;
+  unsigned short blendB;
+  unsigned int blendColor;
+  unsigned short outColor;
+  unsigned short * psxVus = (unsigned short *)psxVub;
+  unsigned short * psxVusTarget;
+  
+  // find top and bottom scanlines (yMin, yMax)
+  // set left and right verts to leftmost and rightmost of top scanline (may be same)
+  for (int i = 0; i < vertCount; i++) {
+    if ((i == 0) || (verts[i].y < yMin)) {
+      yMin = verts[i].y;
+      vertIndexL = i;
+      vertIndexR = i;
+    } else if (verts[i].y == yMin) {
+      vertIndexR = i;
+    }
+    if ((i == 0) || (verts[i].y > yMax)) {
+      yMax = verts[i].y;
+    }
+  }
+  // set initial values before iteration
+  vertIndexNextL = (vertIndexL - 1 + vertCount) % vertCount;
+  vertIndexNextR = (vertIndexR + 1) % vertCount;
+  // iterate through scanlines
+  // TODO: speedup
+  // TODO: expect circular linked list to prevent all this modulo and index crap
+  for (int y = yMin; y < yMax; y++) {
+    if (verts[vertIndexNextL].y == y) {
+      vertIndexL = vertIndexNextL;
+      vertIndexNextL = (vertIndexNextL - 1 + vertCount) % vertCount;
+    }
+    if (verts[vertIndexNextR].y == y) {
+      vertIndexR = vertIndexNextR;
+      vertIndexNextR = (vertIndexNextR + 1) % vertCount;
+    }
+    if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2) {
+      continue;
+    }
+    // ((y - y0)/(y1 - y0))(x1 - x0) + x0
+    xLeft = verts[vertIndexL].x + (
+                                   (float)(y - verts[vertIndexL].y) /
+                                   (verts[vertIndexNextL].y - verts[vertIndexL].y) *
+                                   (verts[vertIndexNextL].x - verts[vertIndexL].x)
+                                   );
+    xRight = verts[vertIndexR].x + (
+                                    (float)(y - verts[vertIndexR].y) /
+                                    (verts[vertIndexNextR].y - verts[vertIndexR].y) *
+                                    (verts[vertIndexNextR].x - verts[vertIndexR].x)
+                                    );
+    // draw scanline
+    // TODO: move CW/CCW agnostic code to a more performant place, or make it more readable?
+    for (int x = (short)((xLeft < xRight ? xLeft : xRight) + 0.5); x < (short)((xLeft < xRight ? xRight : xLeft) + 0.5); x++) {
+      if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2) {
+        continue;
+      }
+      b[0] = ((y - verts[2].y) * (verts[1].x - verts[2].x) +
+              (verts[1].y - verts[2].y) * (verts[2].x - x)) / doubleTriArea;
+      b[1] = ((y - verts[0].y) * (verts[2].x - verts[0].x) +
+              (verts[2].y - verts[0].y) * (verts[0].x - x)) / doubleTriArea;
+      //      b[2] = ((y - verts[1].y) * (verts[0].x - verts[1].x) +
+      //        (verts[0].y - verts[1].y) * (verts[1].x - x)) / doubleTriArea;
+      b[2] = 1 - b[0] - b[1];
+      if (texcoords) {
+        uv.x = round(b[0] * texcoords[0].x + b[1] * texcoords[1].x + b[2] * texcoords[2].x);
+        uv.y = round(b[0] * texcoords[0].y + b[1] * texcoords[1].y + b[2] * texcoords[2].y);
+        outColor = sampleTexpage(texpageX, texpageY, uv, texpageColorDepth, clut);
+      } else {
+        outColor = 0x0000;
+      }
+      if (colors) {
+        blendB = (unsigned short)(
+                                  (colors[0] >> 16 & 0xff) * b[0] +
+                                  (colors[1] >> 16 & 0xff) * b[1] +
+                                  (colors[2] >> 16 & 0xff) * b[2]
+                                  );
+        blendG = (unsigned short)(
+                                  (colors[0] >> 8 & 0xff) * b[0] +
+                                  (colors[1] >> 8 & 0xff) * b[1] +
+                                  (colors[2] >> 8 & 0xff) * b[2]
+                                  );
+        blendR = (unsigned short)(
+                                  (colors[0] & 0xff) * b[0] +
+                                  (colors[1] & 0xff) * b[1] +
+                                  (colors[2] & 0xff) * b[2]
+                                  );
+        if (texcoords) {
+          if (outColor != 0x0000) { // remember, "full-black" is actually "full transparent"
+            blendColor = (blendB << 16) | (blendG << 8) | (blendR);
+            outColor = blend24bit(outColor, blendColor);
+          }
+        } else {
+          outColor = 0x8000 | // alpha bit
+          (blendB << 7 & 0x7c00) |
+          (blendG << 2 & 0x03e0) |
+          (blendR >> 3 & 0x001f);
+        }
+      }
+      psxVusTarget = psxVus + (VRAM_WIDTH * (y + drawingOffset.y) + (x + drawingOffset.x));
+      if (semiTrans) {
+        outColor = blend15bit(outColor, *psxVusTarget, texpageAlphaMode);
+      }
+      if (outColor != 0x0000) { // remember, "full-black" is actually "full transparent"
+        *psxVusTarget = outColor;
+      }
+    }
+  }
+}
+
+unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned short colorDepth, unsigned short clut) {
+  // TODO: either workaround here, or truly fix in rasterizer,
+  // the case when rounding error causes a pixel at scanline edge
+  // to be mapped outside the texwindow. worst case is when that
+  // means invalid memory address.
+  short u = uv.x & (~(textureWindowSetting.maskX * 8)) |
+  ((textureWindowSetting.offsetX & textureWindowSetting.maskX) * 8);
+  short v = uv.y & (~(textureWindowSetting.maskY * 8)) |
+  ((textureWindowSetting.offsetY & textureWindowSetting.maskY) * 8);
+  // set pixel to the halfword beginning the line
+  unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + v);
+  unsigned short sample;
+  unsigned short clutX = 16 * (clut & 0x3f);
+  unsigned short clutY = (clut >> 6) & 0x1ff;
+  
+  switch (colorDepth) {
+    case 0: // 4bit
+      pixel += u / 4;
+      sample = (*pixel >> (4 * (u % 4))) & 0xf;
+      sample = *getPixel(clutX + sample, clutY);
+      break;
+    case 1: // 8bit
+      pixel += u / 2;
+      sample = (*pixel >> (8 * (u % 2))) & 0xff;
+      sample = *getPixel(clutX + sample, clutY);
+      break;
+    case 2: // 16bit
+      pixel += u;
+      sample = (*pixel) & 0xffff;
+      break;
+  }
+  return sample;
+}
