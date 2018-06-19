@@ -6,26 +6,11 @@
 #include "Gpu.h"
 
 // TODO: replace these quick defs for undefined shit
-static void * hInst;
 static long lSelectedSlot;
 static long iTransferMode;
-static HWND GetActiveWindow(void){
-    return (HWND) NULL;
-};
-#define DLGPROC void *
-#define IDD_CFG 0
-static int MAKEINTRESOURCE(int i) {
-    return 0;
-};
-static int IDD_ABOUT;
 static void BuildDispMenu(int i) {
     return;
 };
-static void DialogBox(void * a, int b, HWND c, DLGPROC d) {
-    return;
-};
-static void * CfgDlgProc;
-static void * AboutDlgProc;
 // Vars below here are things I know
 #define CALLBACK
 unsigned char * psxVub;
@@ -542,26 +527,16 @@ long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
 // call config dlg
 ////////////////////////////////////////////////////////////////////////
 
-long CALLBACK GPUconfigure(void)
-{
- HWND hWP=GetActiveWindow();
-
- DialogBox(hInst,MAKEINTRESOURCE(IDD_CFG),
-           hWP,(DLGPROC)CfgDlgProc);
-
- return 0;
+long CALLBACK GPUconfigure(void) {
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////
 // show about dlg
 ////////////////////////////////////////////////////////////////////////
 __attribute__((visibility("default")))
-void CALLBACK GPUabout(void)                           // ABOUT?
-{
- HWND hWP=GetActiveWindow();                           // to be sure
- DialogBox(hInst,MAKEINTRESOURCE(IDD_ABOUT),
-           hWP,(DLGPROC)AboutDlgProc);
- return;
+void CALLBACK GPUabout(void) {
+  return;
 }
 
 ////////////////////////////////////////////////////////////////////////
