@@ -9,6 +9,8 @@
 #define draw_h
 
 #define VRAM_WIDTH 1024
+#define NOTEXPAGE 0
+#define NOCLUT 0
 
 typedef struct {
   int x;

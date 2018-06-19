@@ -153,7 +153,7 @@ void drawSingleColorTri(unsigned int * buffer, unsigned int count) {
   vec2_t tri[] = {v0, v1, v2};
   unsigned int colors[] = {color, color, color};
   
-  drawTexturedTri(tri, NULL, colors, NULL, NULL, semiTrans);
+  drawTexturedTri(tri, NULL, colors, NOTEXPAGE, NOCLUT, semiTrans);
 }
 
 void drawTriTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
@@ -184,8 +184,8 @@ void drawQuad(unsigned int * buffer, unsigned int count) {
   vec2_t tri0[] = {v0, v1, v2};
   vec2_t tri1[] = {v2, v1, v3};
   unsigned int colors[] = {color, color, color};
-  drawTexturedTri(tri0, NULL, colors, NULL, NULL, semiTrans);
-  drawTexturedTri(tri1, NULL, colors, NULL, NULL, semiTrans);
+  drawTexturedTri(tri0, NULL, colors, NOTEXPAGE, NOCLUT, semiTrans);
+  drawTexturedTri(tri1, NULL, colors, NOTEXPAGE, NOCLUT, semiTrans);
 }
 
 void drawQuadTexturedTextureBlend(unsigned int * buffer, unsigned int count) {
@@ -222,7 +222,7 @@ void drawTriShaded(unsigned int * buffer, unsigned int count) {
   vec2_t tri[] = {v0, v1, v2};
   unsigned int colors[] = {c0, c1, c2};
   unsigned int texpage = statusReg & 0x7ff;
-  drawTexturedTri(tri, NULL, colors, texpage, NULL, semiTrans);
+  drawTexturedTri(tri, NULL, colors, texpage, NOCLUT, semiTrans);
 }
 
 void drawTriTexturedShaded(unsigned int * buffer, unsigned int count) {
@@ -257,8 +257,8 @@ void drawQuadShaded(unsigned int * buffer, unsigned int count) {
   vec2_t tri1[] = {v2, v1, v3};
   unsigned int colors0[] = {c0, c1, c2};
   unsigned int colors1[] = {c2, c1, c3};
-  drawTexturedTri(tri0, NULL, colors0, NULL, NULL, semiTrans);
-  drawTexturedTri(tri1, NULL, colors1, NULL, NULL, semiTrans);
+  drawTexturedTri(tri0, NULL, colors0, NOTEXPAGE, NOCLUT, semiTrans);
+  drawTexturedTri(tri1, NULL, colors1, NOTEXPAGE, NOCLUT, semiTrans);
 }
 
 void drawQuadTexturedShaded(unsigned int * buffer, unsigned int count) {
