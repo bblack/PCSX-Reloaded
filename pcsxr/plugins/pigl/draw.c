@@ -465,10 +465,10 @@ void drawTexturedRect(unsigned int * buffer, unsigned int count) {
 
 void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], unsigned short texpage, unsigned short clut, bool semiTrans) {
   short vertCount = 3;
-  short yMin;
-  short yMax;
-  short vertIndexL;
-  short vertIndexR;
+  short yMin = verts[0].y;
+  short yMax = verts[0].y;
+  short vertIndexL = 0;
+  short vertIndexR = 0;
   short vertIndexNextL;
   short vertIndexNextR;
   float xLeft;
@@ -494,14 +494,14 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
   // find top and bottom scanlines (yMin, yMax)
   // set left and right verts to leftmost and rightmost of top scanline (may be same)
   for (int i = 0; i < vertCount; i++) {
-    if ((i == 0) || (verts[i].y < yMin)) {
+    if (verts[i].y < yMin) {
       yMin = verts[i].y;
       vertIndexL = i;
       vertIndexR = i;
     } else if (verts[i].y == yMin) {
       vertIndexR = i;
     }
-    if ((i == 0) || (verts[i].y > yMax)) {
+    if (verts[i].y > yMax) {
       yMax = verts[i].y;
     }
   }
