@@ -598,9 +598,9 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
   // the case when rounding error causes a pixel at scanline edge
   // to be mapped outside the texwindow. worst case is when that
   // means invalid memory address.
-  short u = uv.x & (~(textureWindowSetting.maskX * 8)) |
+  short u = (uv.x & (~(textureWindowSetting.maskX * 8))) |
   ((textureWindowSetting.offsetX & textureWindowSetting.maskX) * 8);
-  short v = uv.y & (~(textureWindowSetting.maskY * 8)) |
+  short v = (uv.y & (~(textureWindowSetting.maskY * 8))) |
   ((textureWindowSetting.offsetY & textureWindowSetting.maskY) * 8);
   // set pixel to the halfword beginning the line
   unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + v);
