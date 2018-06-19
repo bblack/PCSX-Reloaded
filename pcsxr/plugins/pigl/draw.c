@@ -604,7 +604,7 @@ unsigned short sampleTexpage(short texpageX, short texpageY, vec2_t uv, unsigned
   ((textureWindowSetting.offsetY & textureWindowSetting.maskY) * 8);
   // set pixel to the halfword beginning the line
   unsigned short * pixel = getPixel(texpageX * 64, texpageY * 256 + v);
-  unsigned short sample;
+  unsigned short sample = 0x0000;
   unsigned short clutX = 16 * (clut & 0x3f);
   unsigned short clutY = (clut >> 6) & 0x1ff;
   

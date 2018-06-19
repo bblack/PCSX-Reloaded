@@ -53,11 +53,10 @@ void initGLWindow(int width, int height) {
     NSWindowStyleMask styleMask =
       NSWindowStyleMaskTitled |
       NSWindowStyleMaskClosable;
-    window = [NSWindow alloc];
-    [window initWithContentRect:frame
-                      styleMask:styleMask
-                      backing:NSBackingStoreBuffered
-                      defer:NO];
+    window = [[NSWindow alloc] initWithContentRect:frame
+      styleMask:styleMask
+      backing:NSBackingStoreBuffered
+      defer:NO];
     
     NSRect glViewFrame = NSMakeRect(0, 0, width, height);
     NSOpenGLPixelFormatAttribute attrs[] = {};
