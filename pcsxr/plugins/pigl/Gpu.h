@@ -10,6 +10,9 @@
 
 #include "draw.h"
 
+#define PSE_LT_GPU 2
+#define HWND void *
+
 typedef struct {
   short maskX;
   short maskY;

@@ -65,6 +65,7 @@ unsigned short blend15bit(unsigned short src, unsigned short dest, unsigned char
       break;
     default:
       printf("alpha mode %d not implemented\n", alphaMode);
+      outR = outG = outB = 0;
   }
   return 0x8000 | // alpha bit on. TODO: respect mask bit setting (statusReg bits 11 and 12, set by GP0(e6))
   ((outR << 10) & 0x7c00) |
@@ -481,7 +482,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
   short texpageY = (texpage & 0x0010) >> 4; // *256
   short texpageAlphaMode = (texpage & 0x0060) >> 5;
   short texpageColorDepth = (texpage & 0x0180) >> 7;
-  short texpageTextureDisable = (texpage & 0x0800) >> 11;
+  // short texpageTextureDisable = (texpage & 0x0800) >> 11;
   unsigned short blendR;
   unsigned short blendG;
   unsigned short blendB;

@@ -1,4 +1,3 @@
-#include "PSEmu Plugin Defs.h"
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
 #include <OpenGL/glu.h>
@@ -72,7 +71,6 @@ const  unsigned char version  = 1;    // do not touch - library for PSEmu 1.x
 const  unsigned char revision = 1;
 const  unsigned char build    = 46;
 static char *libraryName      = "pi's opengl driver";
-static char *PluginAuthor     = "pi";
 #define VRAM_WIDTH 1024
 #define VRAM_HEIGHT 512
 static int VRAM_PIXEL_COUNT = VRAM_WIDTH * VRAM_HEIGHT;
@@ -86,9 +84,8 @@ char * CALLBACK PSEgetLibName(void) {
  return libraryName;
 }
 
-unsigned long CALLBACK PSEgetLibType(void)
-{
- return  PSE_LT_GPU;
+unsigned long CALLBACK PSEgetLibType(void) {
+  return PSE_LT_GPU;
 }
 
 unsigned long CALLBACK PSEgetLibVersion(void)
@@ -127,10 +124,8 @@ GLuint makeVramTexture(void){
   glBindTexture(GL_TEXTURE_2D, tex);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                  GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   return tex;
 }
 
@@ -244,7 +239,7 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
       }
       break;
     default:
-      printf("Unknown GP1 cmd received: %08x\n", gdata);
+      printf("Unknown GP1 cmd received: %08lx\n", gdata);
       break;
   }
 }

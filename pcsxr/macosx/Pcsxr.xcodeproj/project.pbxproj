@@ -464,7 +464,6 @@
 		39DE201720D214500080F13C /* draw.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = draw.h; sourceTree = "<group>"; };
 		39DE201820D214500080F13C /* draw.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = draw.c; sourceTree = "<group>"; };
 		39DE201A20D214AD0080F13C /* Gpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Gpu.h; sourceTree = "<group>"; };
-		39DE201B20D217EE0080F13C /* PSEmu Plugin Defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "PSEmu Plugin Defs.h"; sourceTree = "<group>"; };
 		5501288E1A1180C800468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		5501288F1A1180E500468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		550128901A11811600468D09 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -1196,7 +1195,6 @@
 		3986C93A1ECD1B3D0097EC16 /* pigl */ = {
 			isa = PBXGroup;
 			children = (
-				39DE201B20D217EE0080F13C /* PSEmu Plugin Defs.h */,
 				39DE201A20D214AD0080F13C /* Gpu.h */,
 				3986C93F1ECD1BF60097EC16 /* Gpu.c */,
 				3986C9451ECD47070097EC16 /* pigl.exp */,
