@@ -10,27 +10,6 @@
 #include "window.h"
 #import <OpenGL/gl.h>
 
-@interface PiGLView : NSOpenGLView
-- (id) initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat*)format;
-@end
-
-@implementation PiGLView
-- (id) initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat *)format {
-  self = [super initWithFrame:frameRect pixelFormat:format];
-  return self;
-}
-
-- (void) reshape {
-  [super reshape];
-  //[[self openGLContext] makeCurrentContext];
-  //glViewport(0, 0, 1024, 512);
-  //glClearColor(1, 0, 0, 0);
-  //glClear(GL_COLOR_BUFFER_BIT);
-  //glFlush();
-  //[[self openGLContext] flushBuffer];
-}
-@end
-
 // Even though window is only used in a block in a function below, we keep a ref
 // to it here. This is to prevent it from being removed immediately by ARC
 // after creation, before it's ever shown.
@@ -74,9 +53,4 @@ void initGLWindow(int width, int height) {
 
 void makeCurrentContext(){
   [[openGLView openGLContext] makeCurrentContext];
-  [[openGLView openGLContext] update];
-}
-
-void flush(){
-  [[openGLView openGLContext] flushBuffer];
 }

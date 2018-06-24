@@ -3,6 +3,7 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 #include "Gpu.h"
+#include "window.h"
 
 // TODO: replace these quick defs for undefined shit
 static long lSelectedSlot;
@@ -136,8 +137,17 @@ void display(void) {
   glEnable(GL_TEXTURE_2D);
   if (!vramTexture)
     vramTexture = makeVramTexture();
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, VRAM_WIDTH, VRAM_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, (unsigned short *)psxVub);
-
+  glTexImage2D(
+    GL_TEXTURE_2D,
+    0,
+    GL_RGB,
+    VRAM_WIDTH,
+    VRAM_HEIGHT,
+    0,
+    GL_RGBA,
+    GL_UNSIGNED_SHORT_1_5_5_5_REV,
+    (unsigned short *)psxVub
+  );
   glBegin(GL_POLYGON);
   glTexCoord2f(0.0, 0.0);
   glVertex3i(-1, 1, 0);
@@ -179,7 +189,7 @@ long CALLBACK GPUclose() {
 ////////////////////////////////////////////////////////////////////////
 
 void CALLBACK GPUupdateLace(void) {
-  makeCurrentContext();
+  makeCurrentContext(); // confirmed required
   display();
 }
 
@@ -477,7 +487,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
   }
 }
 
-void CALLBACK GPUwriteData(unsigned long gdata) {
+void CALLBACK GPUwriteData(unsigned int gdata) {
   // printf("GPUwriteData %08x\n", gdata);
   GPUwriteDataMem(&gdata, 1);
 }
