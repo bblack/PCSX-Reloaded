@@ -50,11 +50,27 @@ void initGLWindow(int width, int height) {
     [window setTitle:@"pigl"];
     [window center];
     [window makeKeyAndOrderFront:NSApp];
-    
-    window2 = [[NSWindow alloc] initWithContentRect:frame
+  });
+}
+
+void initScreenWindow(int width, int height) {
+  RunOnMainThreadSync(^{
+    NSRect frame = NSMakeRect(0, 0, width, height);
+    NSWindowStyleMask styleMask =
+      NSWindowStyleMaskTitled |
+      NSWindowStyleMaskClosable;
+    window = [[NSWindow alloc] initWithContentRect:frame
       styleMask:styleMask
       backing:NSBackingStoreBuffered
       defer:NO];
+    
+    NSRect glViewFrame = NSMakeRect(0, 0, width, height);
+    NSOpenGLPixelFormatAttribute attrs[] = {};
+    NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
+    window2 = [[NSWindow alloc] initWithContentRect:frame
+                                          styleMask:styleMask
+                                            backing:NSBackingStoreBuffered
+                                              defer:NO];
     
     openGLView2 = [NSOpenGLView alloc];
     openGLView2 = [openGLView2 initWithFrame:glViewFrame pixelFormat:pixFmt];

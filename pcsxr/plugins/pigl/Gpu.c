@@ -194,13 +194,13 @@ void display2(void) {
 ////////////////////////////////////////////////////////////////////////
 
 long CALLBACK GPUopen(HWND hwndGPU) {
-  // printf("GPUopen entered\n");
+  int screenW = 640;
+  int screenH = 480;
   psxVub = calloc(VRAM_PIXEL_COUNT * 2, sizeof(unsigned char));
 
   if (!glInitialized) {
-    // printf("initGLWindow()...\n");
     initGLWindow(VRAM_WIDTH, VRAM_HEIGHT);
-    // printf("returned from initGLWindow()\n");
+    initScreenWindow(screenW, screenH);
     glInitialized = TRUE;
     
     makeCurrentContext();
@@ -209,7 +209,7 @@ long CALLBACK GPUopen(HWND hwndGPU) {
     vramTexture = makeVramTexture();
     
     makeCurrentContext2();
-    glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
+    glViewport(0, 0, screenW, screenH);
     glClearColor(0.0, 0.0, 0.0, 0.0);
     vramTexture2 = makeVramTexture();
   }
