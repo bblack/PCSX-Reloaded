@@ -100,17 +100,16 @@ unsigned short blend24bit(unsigned short color, unsigned int blender) {
 }
 
 void copyVramToVram(unsigned int * buffer) {
-  // TODO: fix shift
-  vec2_t fromLoc = {.x = buffer[1] & 0xffff, .y = (buffer[1] >> 32) & 0xffff};
-  vec2_t toLoc = {.x = buffer[2] & 0xffff, .y = (buffer[2] >> 32) & 0xffff};
-  vec2_t size = {.x = buffer[3] & 0xffff, .y = (buffer[3] >> 32) & 0xffff};
+  vec2_t fromLoc = {.x = buffer[1] & 0xffff, .y = (buffer[1] >> 16) & 0xffff};
+  vec2_t toLoc = {.x = buffer[2] & 0xffff, .y = (buffer[2] >> 16) & 0xffff};
+  vec2_t size = {.x = buffer[3] & 0xffff, .y = (buffer[3] >> 16) & 0xffff};
   unsigned short *psxVus = (unsigned short *)psxVub;
   for (int i = 0; i < size.y; i++) {
     memcpy(
-           psxVus + (VRAM_WIDTH * toLoc.y + toLoc.x),
-           psxVus + (VRAM_WIDTH * fromLoc.y + fromLoc.x),
-           2 * size.x
-           );
+      psxVus + (VRAM_WIDTH * toLoc.y + toLoc.x),
+      psxVus + (VRAM_WIDTH * fromLoc.y + fromLoc.x),
+      2 * size.x
+    );
   }
 }
 
