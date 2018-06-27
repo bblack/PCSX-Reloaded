@@ -17,6 +17,8 @@
 // https://stackoverflow.com/a/314311/406882
 NSWindow * window; // apparently must have a strong ref,
 NSOpenGLView * openGLView;
+NSWindow * window2;
+NSOpenGLView * openGLView2;
 
 static inline void RunOnMainThreadSync(dispatch_block_t block) {
   if ([NSThread isMainThread]) {
@@ -48,9 +50,26 @@ void initGLWindow(int width, int height) {
     [window setTitle:@"pigl"];
     [window center];
     [window makeKeyAndOrderFront:NSApp];
+    
+    window2 = [[NSWindow alloc] initWithContentRect:frame
+      styleMask:styleMask
+      backing:NSBackingStoreBuffered
+      defer:NO];
+    
+    openGLView2 = [NSOpenGLView alloc];
+    openGLView2 = [openGLView2 initWithFrame:glViewFrame pixelFormat:pixFmt];
+    
+    [[window2 contentView] addSubview:openGLView2];
+    
+    [window2 setTitle:@"pigl2"];
+    [window2 makeKeyAndOrderFront:NSApp];
   });
 }
 
 void makeCurrentContext(){
   [[openGLView openGLContext] makeCurrentContext];
+}
+
+void makeCurrentContext2(){
+  [[openGLView2 openGLContext] makeCurrentContext];
 }

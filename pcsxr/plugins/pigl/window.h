@@ -5,3 +5,4 @@
 
 void initGLWindow(int width, int height);
 void makeCurrentContext(void);
+void makeCurrentContext2(void);

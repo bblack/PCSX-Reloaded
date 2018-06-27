@@ -19,7 +19,8 @@ int statusReg; // TODO: unsigned?
 static int dataReg;
 #define DATAREG dataReg
 vec2_t drawingOffset;
-static rect_t displayArea;
+static vec2_t displayArea;
+static vec2_t displayRes;
 rect_t drawingArea;
 textureWindowSetting_t textureWindowSetting;
 const static int extraWordsByCommand[] = {
@@ -62,6 +63,7 @@ static unsigned int commandWordsBuffer[256];
 static GPUWrite_t GPUWrite;
 static GPUWrite_t GPURead;
 static GLuint vramTexture;
+static GLuint vramTexture2;
 static bool treatWordsAsPixelData;
 
 ////////////////////////////////////////////////////////////////////////
@@ -115,10 +117,6 @@ void CALLBACK GPUmakeSnapshot(void)                    // MAKE SNAPSHOT FILE
 {
 }
 
-////////////////////////////////////////////////////////////////////////
-// Open/close will be called when a games starts/stops
-////////////////////////////////////////////////////////////////////////
-
 GLuint makeVramTexture(void){
   GLuint tex;
   glGenTextures(1, &tex);
@@ -133,10 +131,8 @@ GLuint makeVramTexture(void){
 // TODO: move it
 void display(void) {
   glClear(GL_COLOR_BUFFER_BIT);
-
   glEnable(GL_TEXTURE_2D);
-  if (!vramTexture)
-    vramTexture = makeVramTexture();
+  glBindTexture(GL_TEXTURE_2D, vramTexture);
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
@@ -149,17 +145,53 @@ void display(void) {
     (unsigned short *)psxVub
   );
   glBegin(GL_POLYGON);
-  glTexCoord2f(0.0, 0.0);
-  glVertex3i(-1, 1, 0);
-  glTexCoord2f(1.0, 0.0);
-  glVertex3i(1, 1, 0);
-  glTexCoord2f(1.0, 1.0);
-  glVertex3i(1, -1, 0);
-  glTexCoord2f(0.0, 1.0);
-  glVertex3i(-1, -1, 0);
+  glTexCoord2i(0, 0);
+  glVertex2i(-1, 1);
+  glTexCoord2i(1, 0);
+  glVertex2i(1, 1);
+  glTexCoord2i(1, 1);
+  glVertex2i(1, -1);
+  glTexCoord2i(0, 1);
+  glVertex2i(-1, -1);
   glEnd();
   glFlush();
 }
+
+void display2(void) {
+  float u1 = (float)displayArea.x / VRAM_WIDTH;
+  float v1 = (float)displayArea.y / VRAM_HEIGHT;
+  float u2 = u1 + (float)displayRes.x / VRAM_WIDTH;
+  float v2 = v1 + (float)displayRes.y / VRAM_HEIGHT;
+  glClear(GL_COLOR_BUFFER_BIT);
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, vramTexture2);
+  glTexImage2D(
+    GL_TEXTURE_2D,
+    0,
+    GL_RGB,
+    VRAM_WIDTH,
+    VRAM_HEIGHT,
+    0,
+    GL_RGBA,
+    GL_UNSIGNED_SHORT_1_5_5_5_REV,
+    (unsigned short *)psxVub
+  );
+  glBegin(GL_POLYGON);
+  glTexCoord2f(u1, v1);
+  glVertex2f(-1, 1);
+  glTexCoord2f(u2, v1);
+  glVertex2f(1, 1);
+  glTexCoord2f(u2, v2);
+  glVertex2f(1, -1);
+  glTexCoord2f(u1, v2);
+  glVertex2f(-1, -1);
+  glEnd();
+  glFlush();
+}
+
+////////////////////////////////////////////////////////////////////////
+// Open/close will be called when a games starts/stops
+////////////////////////////////////////////////////////////////////////
 
 long CALLBACK GPUopen(HWND hwndGPU) {
   // printf("GPUopen entered\n");
@@ -170,10 +202,16 @@ long CALLBACK GPUopen(HWND hwndGPU) {
     initGLWindow(VRAM_WIDTH, VRAM_HEIGHT);
     // printf("returned from initGLWindow()\n");
     glInitialized = TRUE;
+    
     makeCurrentContext();
-    // printf("making GL calls now...\n");
     glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
     glClearColor(0.0, 0.0, 0.0, 0.0);
+    vramTexture = makeVramTexture();
+    
+    makeCurrentContext2();
+    glViewport(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    vramTexture2 = makeVramTexture();
   }
 
   return 0;
@@ -191,6 +229,8 @@ long CALLBACK GPUclose() {
 void CALLBACK GPUupdateLace(void) {
   makeCurrentContext(); // confirmed required
   display();
+  makeCurrentContext2(); // confirmed required
+  display2();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -232,14 +272,17 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
       STATUSREG |= (gdata & 0b11) << 29;
       break;
     case 0x05: // Set display area location (upper-left) in vram
-      displayArea.x1 = gdata & 0x03ff;
-      displayArea.y1 = (gdata >> 10) & 0x01ff;
+      displayArea.x = gdata & 0x03ff;
+      displayArea.y = (gdata >> 10) & 0x01ff;
       break;
     case 0x06: // Set display x-range on screen TODO: do it
       break;
     case 0x07: // Set display y-range on screen TODO: do it
       break;
     case 0x08: // Set display mode TODO: do it
+      displayRes.x = gdata & 0x80 ? 368 :
+        ((gdata & 0x1 ? 320 : 256) * (gdata & 0x2 ? 2 : 1));
+      displayRes.y = gdata & 0x4 ? 480 : 240;
       break;
     case 0x10: // Get GPU Info
       switch (gdata & 0xf) { // param
