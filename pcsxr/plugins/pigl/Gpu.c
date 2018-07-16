@@ -21,6 +21,7 @@ static int dataReg;
 vec2_t drawingOffset;
 static vec2_t displayArea;
 static vec2_t displayRes;
+static GLenum displayColorMode = GL_UNSIGNED_SHORT_1_5_5_5_REV;
 rect_t drawingArea;
 textureWindowSetting_t textureWindowSetting;
 const static int extraWordsByCommand[] = {
@@ -158,9 +159,12 @@ void display(void) {
 }
 
 void display2(void) {
-  float u1 = (float)displayArea.x / VRAM_WIDTH;
+  int w = displayColorMode == GL_UNSIGNED_SHORT_1_5_5_5_REV ? VRAM_WIDTH :
+    (VRAM_WIDTH * 2 / 3);
+  GLenum format = displayColorMode == GL_UNSIGNED_SHORT_1_5_5_5_REV ? GL_RGBA : GL_RGB;
+  float u1 = (float)displayArea.x / w;
   float v1 = (float)displayArea.y / VRAM_HEIGHT;
-  float u2 = u1 + (float)displayRes.x / VRAM_WIDTH;
+  float u2 = u1 + (float)displayRes.x / w;
   float v2 = v1 + (float)displayRes.y / VRAM_HEIGHT;
   glClear(GL_COLOR_BUFFER_BIT);
   glEnable(GL_TEXTURE_2D);
@@ -168,12 +172,12 @@ void display2(void) {
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
-    GL_RGBA,
-    VRAM_WIDTH,
+    format, // internal
+    w,
     VRAM_HEIGHT,
     0,
-    GL_RGBA,
-    GL_UNSIGNED_SHORT_1_5_5_5_REV,
+    format, // data being supplied
+    displayColorMode,
     (unsigned short *)psxVub
   );
   glBegin(GL_POLYGON);
@@ -283,6 +287,11 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
       displayRes.x = gdata & 0x80 ? 368 :
         ((gdata & 0x1 ? 320 : 256) * (gdata & 0x2 ? 2 : 1));
       displayRes.y = gdata & 0x4 ? 480 : 240;
+      if (gdata >> 4 & 0x1) {
+        displayColorMode = GL_UNSIGNED_BYTE;
+      } else {
+        displayColorMode = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+      }
       break;
     case 0x10: // Get GPU Info
       switch (gdata & 0xf) { // param
