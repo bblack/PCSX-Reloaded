@@ -136,7 +136,7 @@ void display(void) {
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
-    GL_RGB,
+    GL_RGBA,
     VRAM_WIDTH,
     VRAM_HEIGHT,
     0,
@@ -168,7 +168,7 @@ void display2(void) {
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
-    GL_RGB,
+    GL_RGBA,
     VRAM_WIDTH,
     VRAM_HEIGHT,
     0,
