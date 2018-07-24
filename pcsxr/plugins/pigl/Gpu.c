@@ -342,7 +342,7 @@ void CALLBACK GPUreadDataMem(unsigned long * pMem, int iSize) {
 
 void setupWriteTextureToVram(unsigned int * buffer, unsigned int count) {
   GPUWrite.x = GPUWrite.currentX = buffer[1] & 0xffff;
-  GPUWrite.y = GPUWrite.currentY = (buffer[1] >> 16) & 0xffff;
+  GPUWrite.y = GPUWrite.currentY = ((buffer[1] >> 16) & 0xffff) & (VRAM_HEIGHT - 1);
   GPUWrite.width = buffer[2] & 0xffff;
   GPUWrite.height = (buffer[2] >> 16) & 0xffff;
   treatWordsAsPixelData = true;
@@ -512,7 +512,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
       GPUWrite.currentX += 1;
       if (GPUWrite.currentX >= GPUWrite.x + GPUWrite.width) {
         GPUWrite.currentX = GPUWrite.x;
-        GPUWrite.currentY += 1;
+        GPUWrite.currentY = (GPUWrite.currentY + 1) & (VRAM_HEIGHT - 1);
       }
     }
     // did we just finish the final line?
