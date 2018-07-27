@@ -77,6 +77,7 @@ const  unsigned char build    = 46;
 static char *libraryName      = "pi's opengl driver";
 #define VRAM_WIDTH 1024
 #define VRAM_HEIGHT 512
+static unsigned int heightMask = VRAM_HEIGHT - 1;
 static int VRAM_PIXEL_COUNT = VRAM_WIDTH * VRAM_HEIGHT;
 static bool glInitialized = FALSE;
 
@@ -506,7 +507,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
            (GPUWrite.currentY < GPUWrite.y + GPUWrite.height) &&
            (pixelNum < iSize * 2)) {
       // TODO: handle case when width not divisible by word width and might wrap mid-word
-      psxVus[GPUWrite.currentY * VRAM_WIDTH + GPUWrite.currentX] =
+      psxVus[(GPUWrite.currentY & heightMask) * VRAM_WIDTH + GPUWrite.currentX] =
         usMem[pixelNum];
       pixelNum += 1;
       GPUWrite.currentX += 1;
