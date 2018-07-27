@@ -285,7 +285,7 @@ void CALLBACK GPUwriteStatus(unsigned long gdata) {
     case 0x07: // Set display y-range on screen TODO: do it
       break;
     case 0x08: // Set display mode TODO: do it
-      displayRes.x = gdata & 0x80 ? 368 :
+      displayRes.x = gdata & 0x40 ? 368 :
         ((gdata & 0x1 ? 320 : 256) * (gdata & 0x2 ? 2 : 1));
       displayRes.y = gdata & 0x4 ? 480 : 240;
       if (gdata >> 4 & 0x1) {
