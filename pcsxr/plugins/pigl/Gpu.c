@@ -37,7 +37,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 48
   0, 0, 0, 3, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
-  2, 0, 2, 0, 3, 3, 3, 3, // 60
+  2, 0, 2, 2, 3, 3, 3, 3, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
   0, 0, 0, 0, 0, 2, 0, 0, // 70
   1, 0, 0, 0, 0, 2, 0, 0, // 78
@@ -428,6 +428,7 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       drawSingleColorRectVarSizeOpaque(buffer, count);
       break;
     case 0x62: // single-color rect, var size, semi-trans
+    case 0x63:
       drawSingleColorRectVarSizeSemiTrans(buffer, count);
       break;
     case 0x78:
