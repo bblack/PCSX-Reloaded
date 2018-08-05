@@ -31,7 +31,7 @@ const static int extraWordsByCommand[] = {
   0, 0, 0, 0, 0, 0, 0, 0, // 18
   3, 0, 3, 0, 6, 6, 6, 6, // 20
   4, 0, 4, 0, 8, 8, 8, 8, // 28
-  5, 0, 5, 0, 8, 0, 0, 0, // 30
+  5, 0, 5, 0, 8, 0, 8, 0, // 30
   7, 7, 7, 7, 11, 0, 11, 0, // 38
   2, 0, 2, 0, 0, 0, 0, 0, // 40
   0, 0, 0, 0, 0, 0, 0, 0, // 48
@@ -399,7 +399,8 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x32: // shaded tri, semi-trans
       drawTriShaded(buffer, count);
       break;
-    case 0x34: // shaded tri, opaque, texblend
+    case 0x34:
+    case 0x36:
       drawTriTexturedShaded(buffer, count);
       break;
     case 0x38: // shaded quad, opaque
@@ -570,12 +571,24 @@ long CALLBACK GPUdmaChain(unsigned long * baseAddrL, unsigned long addr) {
   unsigned char *psxMem = (unsigned char *)baseAddrL;
   unsigned int *memBlockWords;
   unsigned char memBlockWordCount;
+  unsigned long nextAddr;
 
   do {
     memBlockWords = (unsigned int *)(psxMem + addr);
     memBlockWordCount = (memBlockWords[0] >> 24) & 0xff;
     GPUwriteDataMem(memBlockWords + 1, memBlockWordCount);
-    addr = memBlockWords[0] & 0x00ffffff;
+    nextAddr = memBlockWords[0] & 0x00ffffff;
+    // Syphon Filter, after the intro screens, will receive a DMA block
+    // that contains GP0(E3,E4) and points to itself for the next block,
+    // causing an infinite loop. Unclear why (emu core bug? no$ docs mention this:
+    // "In SyncMode=1 and SyncMode=2, the hardware does update MADR (it will
+    // contain the start address of the currently transferred block; at transfer
+    // end, it'll hold the end-address in SyncMode=1, or the 00FFFFFFh end-code in
+    // SyncMode=2)". Maybe it's related?
+    if (nextAddr == addr) {
+      break;
+    }
+    addr = nextAddr;
   } while (addr != 0x00ffffff);
 
   // printf("<< dma chain received\n");

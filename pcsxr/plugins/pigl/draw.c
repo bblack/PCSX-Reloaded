@@ -91,6 +91,9 @@ unsigned short blend24bit(unsigned short color, unsigned int blender) {
   unsigned short b = (color >> 7 & 0xf8) * (blender >> 16 & 0xff) / 0x80;
   unsigned short g = (color >> 2 & 0xf8) * (blender >> 8 & 0xff) / 0x80;
   unsigned short r = (color << 3 & 0xf8) * (blender & 0xff) / 0x80;
+  if (b > 255) b = 255;
+  if (g > 255) g = 255;
+  if (r > 255) r = 255;
   return (
           0x8000 | // alpha bit
           (b << 7 & 0x7c00) |
@@ -225,6 +228,7 @@ void drawTriShaded(unsigned int * buffer, unsigned int count) {
 }
 
 void drawTriTexturedShaded(unsigned int * buffer, unsigned int count) {
+  bool semiTrans = buffer[0] & 0x02000000;
   vec2_t v0 = vertFromWord(buffer[1]);
   vec2_t v1 = vertFromWord(buffer[4]);
   vec2_t v2 = vertFromWord(buffer[7]);
@@ -239,7 +243,7 @@ void drawTriTexturedShaded(unsigned int * buffer, unsigned int count) {
   vec2_t texcoords[] = {uv0, uv1, uv2};
   unsigned short texpage = (buffer[5] >> 16) & 0xffff;
   unsigned short clut = (buffer[2] >> 16) & 0xffff;
-  drawTexturedTri(tri, texcoords, colors, texpage, clut, false);
+  drawTexturedTri(tri, texcoords, colors, texpage, clut, semiTrans);
 }
 
 void drawQuadShaded(unsigned int * buffer, unsigned int count) {
@@ -375,14 +379,21 @@ void drawShadedLine(unsigned int * buffer, unsigned int count) {
 void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int count) {
   int color = buffer[0] & 0xffffff; // 24-bit
   int color15 = get15from24(color) | 0x8000;
-  int originY = (buffer[1] >> 16) & 0xffff;
-  int originX = buffer[1] & 0xffff;
-  int height = (buffer[2] >> 16) & 0xffff;
-  int width = buffer[2] & 0xffff;
+  short originY = (short)(buffer[1] >> 16 & 0xffff);
+  short originX = (short)(buffer[1] & 0xffff);
+  unsigned short height = (buffer[2] >> 16) & 0xffff;
+  unsigned short width = buffer[2] & 0xffff;
   unsigned short * pixel;
   
+  // TODO: dry with drawSingleColorRect16Opaque
   for (int y = originY; y < originY + height; y++) {
+    if (y < drawingArea.y1 || y > drawingArea.y2) {
+      continue;
+    }
     for (int x = originX; x < originX + width; x++) {
+      if (x < drawingArea.x1 || x > drawingArea.x2) {
+        continue;
+      }
       pixel = getPixel(x, y);
       *pixel = blend15bit(color15, *pixel, (statusReg >> 5) & 0x3);
     }
@@ -554,6 +565,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
         outColor = 0x0000;
       }
       if (colors) {
+        // TODO: clamp to 255
         blendB = (unsigned short)(
                                   (colors[0] >> 16 & 0xff) * b[0] +
                                   (colors[1] >> 16 & 0xff) * b[1] +
