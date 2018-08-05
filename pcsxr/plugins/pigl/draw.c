@@ -381,14 +381,18 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
   short originX = (short)(buffer[1] & 0xffff);
   unsigned short height = (buffer[2] >> 16) & 0xffff;
   unsigned short width = buffer[2] & 0xffff;
+  int yMin = originY + drawingOffset.y;
+  int yMax = originY + drawingOffset.y + height;
+  int xMin = originX + drawingOffset.x;
+  int xMax = originX + drawingOffset.x + width;
   unsigned short * pixel;
   
   // TODO: dry with drawSingleColorRect16Opaque
-  for (int y = originY; y < originY + height; y++) {
+  for (int y = yMin; y < yMax; y++) {
     if (y < drawingArea.y1 || y > drawingArea.y2) {
       continue;
     }
-    for (int x = originX; x < originX + width; x++) {
+    for (int x = xMin; x < xMax; x++) {
       if (x < drawingArea.x1 || x > drawingArea.x2) {
         continue;
       }
@@ -403,17 +407,21 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
 void drawSingleColorRect16Opaque(unsigned int * buffer, unsigned int count) {
   int color = buffer[0] & 0xffffff; // 24-bit
   int color15 = get15from24(color);
-  int originY = (buffer[1] >> 16) & 0xffff;
-  int originX = buffer[1] & 0xffff;
-  int height = 16;
-  int width = 16;
+  short originY = (short)(buffer[1] >> 16 & 0xffff);
+  short originX = (short)(buffer[1] & 0xffff);
+  unsigned short height = 16;
+  unsigned short width = 16;
+  int yMin = originY + drawingOffset.y;
+  int yMax = originY + drawingOffset.y + height;
+  int xMin = originX + drawingOffset.x;
+  int xMax = originX + drawingOffset.x + width;
   unsigned short * pixel;
   
-  for (int y = originY; y < originY + height; y++) {
+  for (int y = yMin; y < yMax; y++) {
     if (y < drawingArea.y1 || y > drawingArea.y2) {
       continue;
     }
-    for (int x = originX; x < originX + width; x++) {
+    for (int x = xMin; x < xMax; x++) {
       if (x < drawingArea.x1 || x > drawingArea.x2) {
         continue;
       }
