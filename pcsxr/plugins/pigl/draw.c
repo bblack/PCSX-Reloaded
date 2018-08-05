@@ -122,8 +122,7 @@ vec2_t vertFromWord(unsigned int word) {
 }
 
 // TODO: speedup e.g. with memset
-// TODO: DRY with drawSingleColorRectVarSizeSemiTrans
-void drawSingleColorRectVarSizeOpaque(unsigned int * buffer, unsigned int count) {
+void fillRect(unsigned int * buffer, unsigned int count) {
   int color = buffer[0] & 0xffffff; // 24-bit
   int color15 = get15from24(color);
   int originY = (buffer[1] >> 16) & 0xffff;
@@ -133,13 +132,7 @@ void drawSingleColorRectVarSizeOpaque(unsigned int * buffer, unsigned int count)
   unsigned short * pixel;
   
   for (int y = originY; y < originY + height; y++) {
-    if (y < drawingArea.y1 || y > drawingArea.y2) {
-      continue;
-    }
     for (int x = originX; x < originX + width; x++) {
-      if (x < drawingArea.x1 || x > drawingArea.x2) {
-        continue;
-      }
       pixel = getPixel(x, y);
       *pixel = color15;
     }
@@ -374,9 +367,10 @@ void drawShadedLine(unsigned int * buffer, unsigned int count) {
   }
 }
 
-void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int count) {
+void drawSingleColorRectVarSize(unsigned int * buffer, unsigned int count) {
+  bool semiTrans = (buffer[0] & 0x02000000) != 0;
   int color = buffer[0] & 0xffffff; // 24-bit
-  int color15 = get15from24(color) | 0x8000;
+  int color15 = get15from24(color);
   short originY = (short)(buffer[1] >> 16 & 0xffff);
   short originX = (short)(buffer[1] & 0xffff);
   unsigned short height = (buffer[2] >> 16) & 0xffff;
@@ -397,7 +391,11 @@ void drawSingleColorRectVarSizeSemiTrans(unsigned int * buffer, unsigned int cou
         continue;
       }
       pixel = getPixel(x, y);
-      *pixel = blend15bit(color15, *pixel, (statusReg >> 5) & 0x3);
+      if (semiTrans) {
+        *pixel = blend15bit(color15 | 0x8000, *pixel, (statusReg >> 5) & 0x3);
+      } else {
+        *pixel = color15;
+      }
     }
   }
 }

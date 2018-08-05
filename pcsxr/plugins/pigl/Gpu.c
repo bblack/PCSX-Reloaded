@@ -373,7 +373,7 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x01: // docs unclear - clear fifo, like GP1(01h)? clear texture cache? ??
       break;
     case 0x02: // single-color rect, var size, opaque
-      drawSingleColorRectVarSizeOpaque(buffer, count);
+      fillRect(buffer, count);
       break;
     case 0x20: // the simplest possible poly. single color, 3 points, no shading, no transparency.
     case 0x22:
@@ -427,11 +427,9 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
       break;
     case 0x60: // single-color rect, var size, opaque
     case 0x61:
-      drawSingleColorRectVarSizeOpaque(buffer, count);
-      break;
     case 0x62: // single-color rect, var size, semi-trans
     case 0x63:
-      drawSingleColorRectVarSizeSemiTrans(buffer, count);
+      drawSingleColorRectVarSize(buffer, count);
       break;
     case 0x78:
       drawSingleColorRect16Opaque(buffer, count);
