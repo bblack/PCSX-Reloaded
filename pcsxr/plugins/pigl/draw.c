@@ -351,7 +351,6 @@ void drawShadedLine(unsigned int * buffer, unsigned int count) {
       if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2)
         continue;
       pixel = getPixel(x + drawingOffset.x, y + drawingOffset.y);
-      pixel = getPixel(x, y);
       *pixel = blend15bit(
                           get15from24(blend24(color0, color1, (float)x / (x1 - x0))),
                           *pixel,
@@ -366,7 +365,6 @@ void drawShadedLine(unsigned int * buffer, unsigned int count) {
       if (y + drawingOffset.y < drawingArea.y1 || y + drawingOffset.y > drawingArea.y2)
         continue;
       pixel = getPixel(x + drawingOffset.x, y + drawingOffset.y);
-      pixel = getPixel(x, y);
       *pixel = blend15bit(
                           get15from24(blend24(color0, color1, (float)y / (y1 - y0))),
                           *pixel,

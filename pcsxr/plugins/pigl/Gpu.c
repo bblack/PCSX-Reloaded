@@ -35,7 +35,7 @@ const static int extraWordsByCommand[] = {
   7, 7, 7, 7, 11, 0, 11, 0, // 38
   2, 0, 2, 0, 0, 0, 0, 0, // 40
   0, 0, 0, 0, 0, 0, 0, 0, // 48
-  0, 0, 0, 3, 0, 0, 0, 0, // 50
+  3, 0, 0, 3, 0, 0, 0, 0, // 50
   0, 0, 0, 0, 0, 0, 0, 0, // 58
   2, 0, 2, 2, 3, 3, 3, 3, // 60
   0, 0, 0, 0, 0, 0, 0, 0, // 68
@@ -421,6 +421,7 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x42:
       drawLine(buffer, count);
       break;
+    case 0x50:
     case 0x53:
       drawShadedLine(buffer, count);
       break;
