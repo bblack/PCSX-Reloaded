@@ -38,8 +38,7 @@ void drawQuadShaded(unsigned int * buffer, unsigned int count);
 void drawQuadTexturedShaded(unsigned int * buffer, unsigned int count);
 void drawLine(unsigned int * buffer, unsigned int count);
 void drawShadedLine(unsigned int * buffer, unsigned int count);
-void drawSingleColorRectVarSize(unsigned int * buffer, unsigned int count);
-void drawSingleColorRect16Opaque(unsigned int * buffer, unsigned int count);
+void drawSingleColorRect(unsigned int * buffer, unsigned int count);
 void drawTexturedRect(unsigned int * buffer, unsigned int count);
 void copyVramToVram(unsigned int * buffer);
 

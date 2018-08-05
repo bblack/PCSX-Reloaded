@@ -429,10 +429,8 @@ void executeCommandWordBuffer(unsigned int buffer[256], unsigned int count) {
     case 0x61:
     case 0x62: // single-color rect, var size, semi-trans
     case 0x63:
-      drawSingleColorRectVarSize(buffer, count);
-      break;
-    case 0x78:
-      drawSingleColorRect16Opaque(buffer, count);
+    case 0x78: // single-color rect, 16x16, opaque
+      drawSingleColorRect(buffer, count);
       break;
     case 0x64: // when opponent strikes cloud in battle
     case 0x65:

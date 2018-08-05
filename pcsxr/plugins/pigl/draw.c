@@ -367,21 +367,31 @@ void drawShadedLine(unsigned int * buffer, unsigned int count) {
   }
 }
 
-void drawSingleColorRectVarSize(unsigned int * buffer, unsigned int count) {
+void drawSingleColorRect(unsigned int * buffer, unsigned int count) {
   bool semiTrans = (buffer[0] & 0x02000000) != 0;
   int color = buffer[0] & 0xffffff; // 24-bit
   int color15 = get15from24(color);
   short originY = (short)(buffer[1] >> 16 & 0xffff);
   short originX = (short)(buffer[1] & 0xffff);
-  unsigned short height = (buffer[2] >> 16) & 0xffff;
-  unsigned short width = buffer[2] & 0xffff;
+  unsigned short height;
+  unsigned short width;
+  unsigned char command = buffer[0] & 0xff000000 >> 24;
+  if (command <= 0x63) {
+    width = buffer[2] & 0xffff;
+    height = (buffer[2] >> 16) & 0xffff;
+  } else if (command <= 0x6b) {
+    width = height = 1;
+  } else if (command <= 0x73) {
+    width = height = 8;
+  } else {
+    width = height = 16;
+  }
   int yMin = originY + drawingOffset.y;
   int yMax = originY + drawingOffset.y + height;
   int xMin = originX + drawingOffset.x;
   int xMax = originX + drawingOffset.x + width;
   unsigned short * pixel;
   
-  // TODO: dry with drawSingleColorRect16Opaque
   for (int y = yMin; y < yMax; y++) {
     if (y < drawingArea.y1 || y > drawingArea.y2) {
       continue;
@@ -396,35 +406,6 @@ void drawSingleColorRectVarSize(unsigned int * buffer, unsigned int count) {
       } else {
         *pixel = color15;
       }
-    }
-  }
-}
-
-// TODO: dry with varsize equivalent
-// TODO: use drawing offset
-void drawSingleColorRect16Opaque(unsigned int * buffer, unsigned int count) {
-  int color = buffer[0] & 0xffffff; // 24-bit
-  int color15 = get15from24(color);
-  short originY = (short)(buffer[1] >> 16 & 0xffff);
-  short originX = (short)(buffer[1] & 0xffff);
-  unsigned short height = 16;
-  unsigned short width = 16;
-  int yMin = originY + drawingOffset.y;
-  int yMax = originY + drawingOffset.y + height;
-  int xMin = originX + drawingOffset.x;
-  int xMax = originX + drawingOffset.x + width;
-  unsigned short * pixel;
-  
-  for (int y = yMin; y < yMax; y++) {
-    if (y < drawingArea.y1 || y > drawingArea.y2) {
-      continue;
-    }
-    for (int x = xMin; x < xMax; x++) {
-      if (x < drawingArea.x1 || x > drawingArea.x2) {
-        continue;
-      }
-      pixel = getPixel(x, y);
-      *pixel = color15;
     }
   }
 }
