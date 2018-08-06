@@ -531,7 +531,7 @@ void drawTexturedTri(vec2_t verts[], vec2_t texcoords[], unsigned int colors[], 
                                     );
     // draw scanline
     // TODO: move CW/CCW agnostic code to a more performant place, or make it more readable?
-    for (int x = (short)((xLeft < xRight ? xLeft : xRight) + 0.5); x < (short)((xLeft < xRight ? xRight : xLeft) + 0.5); x++) {
+    for (int x = (short)(xLeft < xRight ? xLeft : xRight); x < (short)(xLeft < xRight ? xRight : xLeft); x++) {
       if (x + drawingOffset.x < drawingArea.x1 || x + drawingOffset.x > drawingArea.x2) {
         continue;
       }
