@@ -522,7 +522,7 @@ void CALLBACK GPUwriteDataMem(unsigned int * pMem, int iSize) {
     // printf("wrote %d words to vram\n", wordNum);
   } else {
     for (int i = 0; i < iSize; i++) {
-//      printf("GP0(%08xh)\n", pMem[i]);
+      // printf("GP0(%08xh)\n", pMem[i]);
       commandWordsBuffer[commandWordsReceived] = pMem[i];
       if (commandWordsReceived == 0) {
         command = (pMem[i] >> 24) & 0xff;

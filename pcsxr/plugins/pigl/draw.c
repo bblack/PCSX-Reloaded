@@ -375,7 +375,7 @@ void drawSingleColorRect(unsigned int * buffer, unsigned int count) {
   short originX = (short)(buffer[1] & 0xffff);
   unsigned short height;
   unsigned short width;
-  unsigned char command = buffer[0] & 0xff000000 >> 24;
+  unsigned char command = buffer[0] >> 24 & 0xff;
   if (command <= 0x63) {
     width = buffer[2] & 0xffff;
     height = (buffer[2] >> 16) & 0xffff;
