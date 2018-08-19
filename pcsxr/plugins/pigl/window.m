@@ -10,14 +10,23 @@
 #include "window.h"
 #import <OpenGL/gl.h>
 
+@interface ShitWindow : NSWindow {}
+@end
+
+@implementation ShitWindow
+  - (void)keyDown:(NSEvent *)event {
+    // do nothing; don't boop
+  }
+@end
+
 // Even though window is only used in a block in a function below, we keep a ref
 // to it here. This is to prevent it from being removed immediately by ARC
 // after creation, before it's ever shown.
 // https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/ProgrammingWithObjectiveC/EncapsulatingData/EncapsulatingData.html
 // https://stackoverflow.com/a/314311/406882
-NSWindow * window; // apparently must have a strong ref,
+ShitWindow * window; // apparently must have a strong ref,
 NSOpenGLView * openGLView;
-NSWindow * window2;
+ShitWindow * window2;
 NSOpenGLView * openGLView2;
 
 static inline void RunOnMainThreadSync(dispatch_block_t block) {
@@ -34,7 +43,7 @@ void initGLWindow(int width, int height) {
     NSWindowStyleMask styleMask =
       NSWindowStyleMaskTitled |
       NSWindowStyleMaskClosable;
-    window = [[NSWindow alloc] initWithContentRect:frame
+    window = [[ShitWindow alloc] initWithContentRect:frame
       styleMask:styleMask
       backing:NSBackingStoreBuffered
       defer:NO];
@@ -59,19 +68,14 @@ void initScreenWindow(int width, int height) {
     NSWindowStyleMask styleMask =
       NSWindowStyleMaskTitled |
       NSWindowStyleMaskClosable;
-    window = [[NSWindow alloc] initWithContentRect:frame
-      styleMask:styleMask
-      backing:NSBackingStoreBuffered
-      defer:NO];
-    
-    NSRect glViewFrame = NSMakeRect(0, 0, width, height);
-    NSOpenGLPixelFormatAttribute attrs[] = {};
-    NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
-    window2 = [[NSWindow alloc] initWithContentRect:frame
+    window2 = [[ShitWindow alloc] initWithContentRect:frame
                                           styleMask:styleMask
                                             backing:NSBackingStoreBuffered
                                               defer:NO];
     
+    NSRect glViewFrame = NSMakeRect(0, 0, width, height);
+    NSOpenGLPixelFormatAttribute attrs[] = {};
+    NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
     openGLView2 = [NSOpenGLView alloc];
     openGLView2 = [openGLView2 initWithFrame:glViewFrame pixelFormat:pixFmt];
     
@@ -79,6 +83,7 @@ void initScreenWindow(int width, int height) {
     
     [window2 setTitle:@"pigl2"];
     [window2 makeKeyAndOrderFront:NSApp];
+    [window2 makeFirstResponder:window2];
   });
 }
 
